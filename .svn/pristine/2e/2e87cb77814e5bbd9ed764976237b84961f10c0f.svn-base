@@ -1,0 +1,200 @@
+package ihmcredit;
+
+import java.io.Serializable;
+import java.util.Date;
+
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
+import com.meimid.core.model.TypeOperation;
+
+public class DataOperationBean implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long	serialVersionUID	= 1L;
+	@Size(min = 2, max = 130)
+	@NotNull
+	private String	          type;
+	private String	          numCompte;
+	private String	          montantCredit;
+	private String	          montantDebit;
+	private String	          accountLabel;
+
+	private Long	          montant;
+
+	private Date	          dateOperation;
+
+	private String	          libelle;
+
+	private String	          remarque;
+
+	private String	          deleteLibelle;
+
+	private Integer	          numTrans;
+	private String	          typeLabel;
+	private String	          status;
+	private String	          Message;
+	private int	              index	             = -1;
+	private boolean	          valide;
+
+	private TypeOperation	  typeOperation;
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(final String type) {
+		this.type = type;
+	}
+
+	public String getNumCompte() {
+		return numCompte;
+	}
+
+	public void setNumCompte(final String numCompte) {
+		this.numCompte = numCompte;
+	}
+
+	public String getMontantCredit() {
+		return montantCredit;
+	}
+
+	public void setMontantCredit(final String montantCredit) {
+		this.montantCredit = montantCredit;
+	}
+
+	public String getMontantDebit() {
+		return montantDebit;
+	}
+
+	public void setMontantDebit(final String montantDebit) {
+		this.montantDebit = montantDebit;
+	}
+
+	public String getAccountLabel() {
+		return accountLabel;
+	}
+
+	public void setAccountLabel(final String accountLabel) {
+		this.accountLabel = accountLabel;
+	}
+
+	public Long getMontant() {
+		return montant;
+	}
+
+	public void setMontant(final Long montant) {
+		this.montant = montant;
+	}
+
+	public Date getDateOperation() {
+		return dateOperation;
+	}
+
+	public void setDateOperation(final Date dateOperation) {
+		this.dateOperation = dateOperation;
+	}
+
+	public String getLibelle() {
+		return libelle;
+	}
+
+	public void setLibelle(final String libelle) {
+		this.libelle = libelle;
+	}
+
+	public String getRemarque() {
+		return remarque;
+	}
+
+	public void setRemarque(final String remarque) {
+		this.remarque = remarque;
+	}
+
+	public String getDeleteLibelle() {
+		return deleteLibelle;
+	}
+
+	public void setDeleteLibelle(final String deleteLibelle) {
+		this.deleteLibelle = deleteLibelle;
+	}
+
+	/**
+	 * @return the numTrans
+	 */
+	public Integer getNumTrans() {
+		return numTrans;
+	}
+
+	/**
+	 * @param numTrans
+	 *            the numTrans to set
+	 */
+	public void setNumTrans(final Integer numTrans) {
+		this.numTrans = numTrans;
+	}
+
+	public String getTypeLabel() {
+		return typeLabel;
+	}
+
+	public void setTypeLabel(final String typeLabel) {
+		this.typeLabel = typeLabel;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(final String status) {
+		this.status = status;
+	}
+
+	public String getMessage() {
+		return Message;
+	}
+
+	public void setMessage(final String message) {
+		Message = message;
+	}
+
+	public int getIndex() {
+		return index;
+	}
+
+	public void setIndex(final int index) {
+		this.index = index;
+	}
+
+	/**
+	 * @return the valide
+	 */
+	public boolean isValide() {
+		return valide;
+	}
+
+	/**
+	 * @param valide
+	 *            the valide to set
+	 */
+	public void setValide(final boolean valide) {
+		this.valide = valide;
+	}
+
+	/**
+	 * @return the typeOperation
+	 */
+	public TypeOperation getTypeOperation() {
+		return typeOperation;
+	}
+
+	/**
+	 * @param typeOperation
+	 *            the typeOperation to set
+	 */
+	public void setTypeOperation(final TypeOperation typeOperation) {
+		this.typeOperation = typeOperation;
+	}
+
+}

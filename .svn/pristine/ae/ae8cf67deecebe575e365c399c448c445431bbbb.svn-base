@@ -1,0 +1,20 @@
+#user.url=jdbc:h2:~/classified
+#user.url=jdbc:h2:mem:classified;INIT=CREATE SCHEMA IF NOT EXISTS classified\;SET SCHEMA classified
+user.url=jdbc:h2:~/app-root/data/credit5;DB_CLOSE_ON_EXIT=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS credit\\;SET SCHEMA credit
+#"jdbc:h2:target/h2/ps;AUTO_SERVER=TRUE"
+#user.url=jdbc:h2:~/credit.db;MODE=MYSQL;DB_CLOSE_ON_EXIT=TRUE;INIT= FROM '~/scripts/credit_user.sql'\\;"
+#user.url=jdbc:h2:file:~/notrecredit3.db;DB_CLOSE_ON_EXIT=close;
+user.name=credit
+#user.name=sa
+user.password=credit
+
+#addsManager
+database.driver=org.h2.Driver
+hibernate.dialect=org.hibernate.dialect.H2Dialect
+#hibernate.hbm2ddl.auto=create-drop
+hibernate.hbm2ddl.auto=update
+hibernate.show_sql=true
+#String url = "jdbc:h2:mem;" +             "INIT=RUNSCRIPT FROM '~/create.sql'\\;" + 
+ #+"RUNSCRIPT FROM '~/populate.sql'";
+
+

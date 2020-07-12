@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+   xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:sec="http://www.springframework.org/schema/security" 
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+    http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd 
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd ">
+
+
+  
+
+    <!-- This is where we tells spring security what URL should be protected 
+        and what roles have access to them 
+    
+<global-method-security pre-post-annotations="enabled" />  
+    
+    -->
+    
+     <http pattern="/**" 
+        create-session="stateless"
+        authentication-manager-ref="clientAuthenticationManager"
+          xmlns="http://www.springframework.org/schema/security">
+          <intercept-url pattern="/welcome/**" access="IS_AUTHENTICATED_ANONYMOUSLY"/> 
+           <intercept-url pattern="/backupCtr/**" access="IS_AUTHENTICATED_ANONYMOUSLY"/> 
+         <intercept-url pattern="/upload/**" access="IS_AUTHENTICATED_ANONYMOUSLY"/> 
+         
+        <intercept-url pattern="/admin/**" access="ROLE_ADMIN" />
+        
+        <intercept-url pattern="/secure/**" access="ROLE_USER" /> 
+         <intercept-url pattern="/account/**" access="ROLE_USER,ROLE_ADMIN" /> 
+        <intercept-url pattern="/operation**" access="ROLE_USER" /> 
+         <intercept-url pattern="/online/**" access="ROLE_ONLINE" /> 
+        
+          
+         <!--
+        <anonymous enabled="false" />
+-->
+        <http-basic entry-point-ref="restAuthenticationEntryPoint" />
+
+
+        <!-- include this only if you need to authenticate clients via request parameters -->
+        <custom-filter ref="diffterFilter" after="BASIC_AUTH_FILTER" />
+       
+    </http>
+
+    
+     
+     <bean id="restAuthenticationEntryPoint"
+      class="ihmcredit.RestAuthenticationEntryPoint"/>
+      
+      
+      
+      
+    <bean id="diffterFilter" class="ihmcredit.DiffterFilter">
+    <property name="userService" ref="userService" />              
+    </bean>
+
+  
+    <authentication-manager id="clientAuthenticationManager"
+        xmlns="http://www.springframework.org/schema/security">
+        <authentication-provider user-service-ref="userService" />
+    </authentication-manager>
+    
+    
+
+
+
+</beans>

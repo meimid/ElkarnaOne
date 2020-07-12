@@ -1,0 +1,730 @@
+package ihmcredit;
+import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.apache.commons.lang3.time.DateUtils;
+import org.apache.log4j.Logger;
+import org.joda.time.LocalDate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.ui.ModelMap;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.validation.Validator;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.meimid.core.dto.AccountDto;
+import com.meimid.core.dto.AccountTypeConstant;
+import com.meimid.core.dto.TransfereReq;
+import com.meimid.core.model.Account;
+import com.meimid.core.model.ArchiveMvtDaily;
+import com.meimid.core.model.MvtDaily;
+import com.meimid.core.model.User;
+import com.meimid.core.service.IAccountService;
+import com.meimid.core.service.IAccountsMovementService;
+import com.meimid.core.service.IMvtDailyService;
+import com.meimid.core.service.IPersonneService;
+import com.meimid.core.service.ITransactionService;
+
+@RestController
+@PreAuthorize("hasAuthority('ROLE_ADMIN','ROLE_USER')")
+@RequestMapping("/operation")
+@CrossOrigin
+public class OperationController extends AbstractClassBase {
+	static Logger	         log	= Logger.getLogger(OperationController.class
+            .getName());
+
+@Autowired
+IAccountService	         accountService;
+@Autowired
+ITransactionService	     transactionService;
+@Autowired
+IPersonneService	     personneService;
+
+
+
+@Autowired
+@Qualifier("userValidator")
+private Validator	     validator;
+
+Map<String, AccountDto>	 listBaseCompte;
+
+@Autowired
+private IMvtDailyService	mvtDailyService;
+	
+	
+	@RequestMapping(value = "/addMvtTodayOperationAn",
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	MvtDaily addOperationAngToday(@RequestBody final MvtDaily ope,
+	        final HttpServletRequest request) {
+		
+		User userLoged= (User) request.getAttribute("userLoged");
+		ope.setMessage("ok");
+		ope.setStatus("KO");
+		if (!StringUtils.isEmpty(ope.getName())) {
+
+			ope.setMontantCredit(ope.getMontant());
+			if ("IN".equals(ope.getType())|| "CR".equals(ope.getType())) {
+				ope.setMontantCredit(null);
+				ope.setMontantDebit(ope.getMontant());
+				ope.setStatus("KO");
+
+			}
+
+			// l_trans.setLibelle(ope.getRemarque());
+			try { //
+				if (org.apache.commons.lang3.StringUtils.isNotEmpty(ope
+				        .getNumCompte())) {
+					final Account ac = accountService.getAccountByNum(ope
+					        .getNumCompte());
+					if (ac == null) {
+						ope.setMessage(messageSource.getMessage(
+						        "lable.compte.not.found", null,
+						        LocaleContextHolder.getLocale()));
+						ope.setStatus("KO");
+						return ope;
+					}
+					if(!getTypeCompteCodeList().contains(ac.getTypeCompte())){
+						
+						ope.setMessage(messageSource.getMessage(
+						        "label.type.operqtion.not.valide", null,
+						        LocaleContextHolder.getLocale()));
+						ope.setStatus("KO");
+						return ope;
+						
+						
+					}
+					if(("IN".equals(ope.getType())|| "CR".equals(ope.getType())) && ac.getTypeCompte().equals("CCHARGE"))
+						{
+
+						ope.setMessage(messageSource.getMessage(
+						        "label.type.operqtion.not.valide", null,
+						        LocaleContextHolder.getLocale()));
+						ope.setStatus("KO");
+						return ope;
+						}
+					final TransfereReq  ltr = getTrnans(ope, ac);
+					ltr.setUser(userLoged);
+					ope.setTransfereReq(ltr);
+
+				}
+				ope.setUser(userLoged);
+				mvtDailyService.save(ope);
+				ope.setStatus("");
+				ope.setMessage("ok");
+			}
+
+			catch (final Exception e) {
+				ope.setStatus("KO");
+				System.out.println("Exception " + e);
+				ope.setMessage(messageSource.getMessage(
+				        "label.operation.not.saved", null,
+				        LocaleContextHolder.getLocale()));
+
+				e.printStackTrace();
+			}
+
+		} else {
+			ope.setMessage(messageSource.getMessage("lable.compte.null", null,
+			        LocaleContextHolder.getLocale()));
+			ope.setStatus("KO");
+
+		}
+		
+		return ope;
+	}
+	@RequestMapping(value = "/listTodayDailyWithSus",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public DailyBean getTodayDailyOpWithSus(final HttpServletRequest request)
+	        throws JsonProcessingException, ParseException {
+		User userLoged= (User) request.getAttribute("userLoged");
+		final DailyBean ldDailyBean = new DailyBean();
+		Date today = new Date();
+		today = DateUtils.truncate(today, Calendar.DAY_OF_MONTH);
+		final List<MvtDaily> list = mvtDailyService.getByDateAndSus(today,userLoged.getUserLogin());
+		final List<MvtDaily> listIn = new ArrayList<MvtDaily>();
+		final List<MvtDaily> listOut = new ArrayList<MvtDaily>();
+		final List<MvtDaily> crList = new ArrayList<MvtDaily>();
+		ldDailyBean.setCrList(crList);
+		ldDailyBean.setInList(listIn);
+		ldDailyBean.setOutList(listOut);
+		long someIn = 0;
+		long someOut = 0;
+		long someCr = 0;
+		long sole=0;
+		if (!CollectionUtils.isEmpty(list)) {
+			for (final MvtDaily current : list) {				
+				current.setName(org.apache.commons.lang3.StringUtils.defaultString(current.getName(),""));
+				if ("IN".equals(current.getType())) {
+					listIn.add(current);
+					if(current.getMontantDebit()!=null)
+					someIn += current.getMontantDebit();
+				}
+				if ("OUT".equals(current.getType())) {
+					listOut.add(current);
+					if(current.getMontantCredit()!=null)
+					someOut += current.getMontantCredit();
+				}
+				
+				if ("CR".equals(current.getType())) {
+					crList.add(current);
+					if(current.getMontantDebit()!=null)
+					someCr += current.getMontantDebit();
+				}
+
+			}
+			ldDailyBean.setSomeIn(someIn);
+			ldDailyBean.setSomeOut(someOut);
+			ldDailyBean.setSomeCr(someCr);
+			
+			sole = someIn- someOut;
+			ldDailyBean.setSolde(sole);
+
+		}
+		//	final long soledReal = mvtDailyService.getSolde();
+		ldDailyBean.setSoldeReal(sole);
+		return ldDailyBean;
+
+	}
+	
+	
+	@RequestMapping(value = "/listTodayAllDailyOpJeson",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public DailyBean getAllTodayDailyOperation(
+	        final HttpServletRequest request, final OperationDto opt)
+	        throws JsonProcessingException {
+		
+		final DailyBean ldDailyBean = new DailyBean();
+		User userLoged= (User) request.getAttribute("userLoged");
+		final List<MvtDaily> list = mvtDailyService.getAll(userLoged.getUserLogin());
+		final List<MvtDaily> listIn = new ArrayList<MvtDaily>();
+		final List<MvtDaily> listOut = new ArrayList<MvtDaily>();
+		final List<MvtDaily> crList = new ArrayList<MvtDaily>();
+		ldDailyBean.setCrList(crList);
+		ldDailyBean.setInList(listIn);
+		ldDailyBean.setOutList(listOut);
+		long someIn = 0;
+		long someOut = 0;
+		long someCr = 0;
+		if (!CollectionUtils.isEmpty(list)) {
+			for (final MvtDaily current : list) {
+				//current.setName(org.apache.commons.lang3.StringUtils.defaultString(current.getName(),""));
+
+				if ("IN".equals(current.getType())) {
+					listIn.add(current);
+					someIn += current.getMontantDebit();
+				}
+				if ("OUT".equals(current.getType())) {
+					listOut.add(current);
+					someOut += current.getMontantCredit();
+				}
+				if ("CR".equals(current.getType())) {
+					crList.add(current);
+					if(current.getMontantDebit()!=null)
+					someCr += current.getMontantDebit();
+				}
+
+			}
+			ldDailyBean.setSomeIn(someIn);
+			ldDailyBean.setSomeOut(someOut);
+			ldDailyBean.setSomeCr(someCr);
+
+			final long soldeReal = someIn - someOut ;
+
+			ldDailyBean.setSoldeReal(soldeReal);
+
+		}
+
+		return ldDailyBean;
+
+	}
+	
+	
+	@RequestMapping(value = "/listTodayAllDailyOpByDate",
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public DailyBean getAllTodayDailyOp(final HttpServletRequest request,
+	        @RequestBody final OperationDto opt) throws JsonProcessingException {
+		final DailyBean ldDailyBean = new DailyBean();
+		User userLoged= (User) request.getAttribute("userLoged");
+		final List<MvtDaily> list = mvtDailyService.getFromDate(opt.getFrom(),
+		        opt.getTo(),userLoged.getUserLogin());
+		final List<MvtDaily> listIn = new ArrayList<MvtDaily>();
+		final List<MvtDaily> listOut = new ArrayList<MvtDaily>();
+		final List<MvtDaily> listSus = new ArrayList<MvtDaily>();
+		final List<MvtDaily> crList = new ArrayList<MvtDaily>();
+		ldDailyBean.setCrList(crList);
+		ldDailyBean.setInList(listIn);
+		ldDailyBean.setOutList(listOut);
+		ldDailyBean.setSusList(listSus);
+		long someIn = 0;
+		long someOut = 0;
+		long someCr = 0;
+		if (!CollectionUtils.isEmpty(list)) {
+			for (final MvtDaily current : list) {
+
+				if ("IN".equals(current.getType())) {
+					listIn.add(current);
+					someIn += current.getMontantDebit();
+
+				}
+				if ("OUT".equals(current.getType())) {
+					listOut.add(current);
+					someOut += current.getMontantCredit();
+
+				}
+				if ("CR".equals(current.getType())) {
+					crList.add(current);
+					if(current.getMontantDebit()!=null)
+					someCr += current.getMontantDebit();
+				}
+
+			}
+			ldDailyBean.setSomeIn(someIn);
+			ldDailyBean.setSomeOut(someOut);
+			ldDailyBean.setSomeCr(someCr);
+			long soldeReal = 0;
+
+			
+			final long solde = someIn- someOut;
+
+			ldDailyBean.setSoldeReal(solde);
+			ldDailyBean.setSolde(solde);
+
+		}
+
+		return ldDailyBean;
+
+	}
+	
+	
+	
+
+	@RequestMapping(value = "/deleteDailyMvt/{numTrans}",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	InfoBean deleteDaily(@PathVariable final Long numTrans) {
+
+		final int k = mvtDailyService.removeSus(numTrans);
+		final InfoBean lt = new InfoBean();
+		if (k == -1) {
+			lt.setCode("-1");
+			lt.setLibelle(messageSource.getMessage("delet.operation.nonmodif",
+			        null, LocaleContextHolder.getLocale()));
+
+		}
+		if (k == -2) {
+			lt.setCode("-2");
+			lt.setLibelle(messageSource.getMessage(
+			        "lable.montant.deleteTrnsfer", null,
+			        LocaleContextHolder.getLocale()));
+
+		}
+
+		return lt;
+	}
+	
+	
+	@RequestMapping(value = "/deleteDailyMvtOper",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	InfoBean deleteDailyMvtOp( @RequestParam(required = false) final Long  numTrans,final HttpServletRequest request) throws JsonProcessingException {
+
+		
+		final int k = mvtDailyService.removeSus(numTrans);
+		
+		final InfoBean lt = new InfoBean();
+		lt.setCode("ok");
+		if (k == -1) {
+			lt.setCode("-1");
+			lt.setLibelle(messageSource.getMessage("delet.operation.nonmodif",
+			        null, LocaleContextHolder.getLocale()));
+
+		}
+		if (k == -2) {
+			lt.setCode("-2");
+			lt.setLibelle(messageSource.getMessage(
+			        "lable.montant.deleteTrnsfer", null,
+			        LocaleContextHolder.getLocale()));
+
+		}
+		if (k == -3) {
+			lt.setCode("-3");
+			lt.setLibelle(messageSource.getMessage(
+			        "lable.montant.deleteFacture", null,
+			        LocaleContextHolder.getLocale()));
+
+		}
+		
+
+		return lt;
+	}
+
+	
+	@RequestMapping(value = "/allDailyMvtValide",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public InfoBean lookForAllDailyMvtBureaMVTPage(HttpServletRequest request)
+	        throws JsonProcessingException
+
+	{
+		
+		User userLoged= (User) request.getAttribute("userLoged");
+		mvtDailyService.validateAll(userLoged.getUserLogin());
+
+		return new InfoBean();
+	}
+	
+	@RequestMapping(value = "/archive",produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	InfoBean archiveAccount(final HttpServletRequest request) {
+	
+		final InfoBean inf = new InfoBean();
+		User userLoged= (User) request.getAttribute("userLoged");
+		mvtDailyService.archiverMVT(userLoged.getUserLogin());
+
+		inf.setCode("0");
+		return inf;
+
+	}
+	
+	
+	@RequestMapping(value = "/listArchiveDailyOpJeson",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public DailyBean getAllArchiveDailyOperation(
+	        final HttpServletRequest request, final OperationDto opt)
+	        throws JsonProcessingException {
+		final DailyBean ldDailyBean = new DailyBean();
+		User userLoged= (User) request.getAttribute("userLoged");
+		final List<ArchiveMvtDaily> list = mvtDailyService.getAllArchiveMVT(userLoged.getUserLogin());
+		final List<ArchiveMvtDaily> listIn = new ArrayList<ArchiveMvtDaily>();
+		final List<ArchiveMvtDaily> listOut = new ArrayList<ArchiveMvtDaily>();
+		final List<ArchiveMvtDaily>        crList = new ArrayList<ArchiveMvtDaily>();
+		ldDailyBean.setInLista(listIn);
+		ldDailyBean.setOutLista(listOut);
+		ldDailyBean.setCrLista(crList);
+		if (!CollectionUtils.isEmpty(list)) {
+			for (final ArchiveMvtDaily current : list) {
+
+				if ("IN".equals(current.getType())) {
+					listIn.add(current);
+
+				}
+				if ("OUT".equals(current.getType())) {
+					listOut.add(current);
+
+				}
+				if ("CR".equals(current.getType())) {
+					crList.add(current);					
+				}
+
+			}
+
+		}
+
+		return ldDailyBean;
+
+	}
+	
+	private TransfereReq getTrnans(final MvtDaily pMvt, final Account pAccount) {
+		final TransfereReq l_transfereReq = new TransfereReq();
+		
+		Account act = accountService.getCaisseAccoun();
+		l_transfereReq.setTypeOperation(AccountTypeConstant.CES);
+		l_transfereReq.setAmount(pMvt.getMontant());
+
+		l_transfereReq.setDate(new LocalDate());
+		l_transfereReq.setDate(new LocalDate(pMvt.getDateOperation()));
+		
+		final String l_libelle = messageSource.getMessage(pMvt.getType(), null,
+		        LocaleContextHolder.getLocale());
+		final String l_remarque = pMvt.getRemarque();
+		l_transfereReq.setLibelle(l_libelle);
+		
+		l_transfereReq.setRemarque(l_remarque);
+
+		if ("IN".equals(pMvt.getType())) {
+
+			l_transfereReq.setFromAccountNo(pAccount);
+			l_transfereReq.setToAccountNo(act);
+			return l_transfereReq;
+
+		}
+		if ("OUT".equals(pMvt.getType())) {
+			l_transfereReq.setFromAccountNo(act);
+			l_transfereReq.setToAccountNo(pAccount);
+			return l_transfereReq;
+		}
+		
+		if ("CR".equals(pMvt.getType())) {
+			act = accountService.geVentAccoun();
+			l_transfereReq.setTypeOperation("CR");
+			l_transfereReq.setFromAccountNo(act);
+			l_transfereReq.setToAccountNo(pAccount);
+			if(StringUtils.isEmpty(l_transfereReq.getRemarque()))
+			l_transfereReq.setRemarque(l_libelle);
+			return l_transfereReq;
+		}
+
+		return l_transfereReq;
+	}
+	
+	
+	@RequestMapping(value = "/currentUser",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	User modifyUserPassword(final HttpServletRequest request) throws JsonProcessingException {
+		
+	User userL=(User) request.getAttribute("userLoged");
+	String str=userL.getPrimaryRole();
+	str=str.replace("ROLE_", "");
+	userL.setPrimaryRole(str);
+return userL;
+	}
+	
+	@RequestMapping(value = "/modifyPassdy",
+	        headers = { "Content-type=application/json" },
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	User modifyUserPassword(@RequestBody final User userP) throws JsonProcessingException {
+		if (userP == null || StringUtils.isEmpty(userP.getUserLogin())) {
+			final String msg = messageSource.getMessage("label.name.required",
+			        null, LocaleContextHolder.getLocale());
+			userP.setMessage(msg);
+			return userP;
+
+		}
+
+		if (StringUtils.isEmpty(userP.getUserLogin())
+		        || StringUtils.isEmpty(userP.getPassword())
+		        ) {
+			String msg = "";
+			if (StringUtils.isEmpty(userP.getUserLogin())) {
+				msg = messageSource.getMessage("label.name.required", null,
+				        LocaleContextHolder.getLocale());
+			}
+			if (StringUtils.isEmpty(userP.getPassword())) {
+				msg = messageSource.getMessage("lable.password.necessaire",
+				        null, LocaleContextHolder.getLocale());
+
+			}
+			
+
+			userP.setMessage(msg);
+			return userP;
+
+		}
+		if (userP.getUserLogin().indexOf(" ") >= 0) {
+			final String msg = messageSource.getMessage(
+			        "label.user.login.not.valide", null,
+			        LocaleContextHolder.getLocale());
+			userP.setMessage(msg);
+			return userP;
+
+		}
+
+			final User user = userService.getUserByLogin(userP.getUserLogin());
+			user.setPassword(userP.getNewPassword());
+		userService.updateUser(user);
+		userP.setMessage("");
+		return userP;
+
+	}
+	
+	@RequestMapping(value = "/listAllAccountPupJson",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	List<AccountDto> getAllAccountPupJson(final ModelMap model,
+
+	final HttpServletRequest request) throws JsonProcessingException {
+		User userLoged= (User) request.getAttribute("userLoged");
+		final List<String> l_types = new ArrayList();
+		l_types.add("CLIENT");
+		l_types.add("FOURNISSEUR");
+		l_types.add("CHARGE");
+		
+		
+		return accountService.getAccountLightByCode(l_types,userLoged.getUserLogin());
+
+	}
+	
+	
+	
+	
+	
+	
+	@RequestMapping(value = "/saveOperationDiverAn",			
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	OperationDiverBean saveOperationDiverAn(@RequestBody final OperationDiverBean ope,
+	        final HttpServletRequest request) {
+		ope.setMessage("");
+		ope.setStatus("KO");		
+		User userLoged= (User) request.getAttribute("userLoged");
+		
+		if (!StringUtils.isEmpty(ope.getNumCompteFrom()) && !StringUtils.isEmpty(ope.getNumCompteTo())) {
+			final Account accountFrom = accountService.getAccountByNum(ope
+			        .getNumCompteFrom());
+			if(accountFrom==null){
+				
+				ope.setMessage(messageSource.getMessage(
+				        "lable.compte.not.found", null,
+				        LocaleContextHolder.getLocale()));
+				ope.setStatus("KO");
+				return ope;
+			}
+			
+			final Account accountTo = accountService.getAccountByNum(ope
+			        .getNumCompteTo());
+			
+                if( accountTo==null){
+				
+				ope.setMessage(messageSource.getMessage(
+				        "lable.compte.not.found", null,
+				        LocaleContextHolder.getLocale()));
+				ope.setStatus("KO");
+				return ope;
+			}
+                if(!accountTo.getTypeCompte().equals(accountFrom.getTypeCompte()))
+                {
+                	if(!accountTo.getTypeCompte().equals("FOURNISSEUR") && !accountTo.getTypeCompte().equals("CCLIENT"))
+                	{
+                		
+                		ope.setMessage(messageSource.getMessage(
+        				        "label.type.operqtion.not.valide", null,
+        				        LocaleContextHolder.getLocale()));
+        				ope.setStatus("KO");
+        				return ope;
+                	}
+                	if(!accountFrom.getTypeCompte().equals("FOURNISSEUR") &&!accountFrom.getTypeCompte().equals("CCLIENT"))
+                	{
+                		
+                		ope.setMessage(messageSource.getMessage(
+        				        "label.type.operqtion.not.valide", null,
+        				        LocaleContextHolder.getLocale()));
+        				ope.setStatus("KO");
+        				return ope;
+                	}
+                	
+                }
+                
+                if(accountFrom.getNumAccount().equals(accountTo.getNumAccount()))
+            	{
+            		
+            		ope.setMessage(messageSource.getMessage(
+    				        "label.type.operqtion.not.valide", null,
+    				        LocaleContextHolder.getLocale()));
+    				ope.setStatus("KO");
+    				return ope;
+            	}
+             
+				final Date dt = ope.getDateOperation();// LocalDate.now();
+						
+				final TransfereReq l_trans = getTrnans(accountFrom, accountTo);
+				
+				l_trans.setUser(userLoged);
+				l_trans.setAmount(ope.getMontant());
+				
+				l_trans.setDate(new LocalDate(dt));
+				Object[] args = new Object[] { ope.getNumCompteFrom(), ope.getNumCompteTo() };
+				final String l_libelle =messageSource.getMessage(
+				        "label.virement.compte", args, LocaleContextHolder.getLocale());//¨  ope.getType();
+				String l_remarque = ope.getRemarque();
+				
+				l_trans.setLibelle(l_libelle);
+				
+
+				if (!StringUtils.isEmpty(l_remarque)) {
+					try {
+
+						l_remarque = new String(l_remarque.trim()
+						        .getBytes("8859_1"), "UTF8");
+						l_trans.setRemarque(l_remarque);
+						ope.setRemarque(l_remarque);
+					} catch (final UnsupportedEncodingException e1) {
+						// TODO Auto-generated catch block
+						l_trans.setRemarque(l_remarque);
+						e1.printStackTrace();
+						ope.setRemarque(l_remarque);
+					}
+
+				}
+				if(StringUtils.isEmpty(l_remarque))
+				{
+					l_remarque=l_libelle;
+					l_trans.setRemarque(l_remarque);					
+					ope.setRemarque(l_remarque);
+				}
+					
+
+				// l_trans.setLibelle(ope.getRemarque());
+				try { //
+
+					l_trans.setNumTransc(ope.getNumTrans());
+					final Long numTr = transactionService
+					        .createOrSaveTransaction(l_trans);
+
+					ope.setNumTrans(numTr);
+					ope.setStatus("");
+				}
+
+				catch (final Exception e) {
+					ope.setStatus("KO");
+					System.out.println("Exception " + e);
+					ope.setMessage(messageSource.getMessage(
+					        "label.operation.not.saved", null,
+					        LocaleContextHolder.getLocale()));
+					
+
+					e.printStackTrace();
+				}
+
+			} else {
+				ope.setStatus("KO");
+				ope.setMessage( messageSource.getMessage("lable.compte.null",
+			        null, LocaleContextHolder.getLocale()));
+		}
+
+		
+		return ope;
+
+		
+	}
+	
+	private TransfereReq getTrnans(final Account accountFrom, final Account accountTo) {
+		final TransfereReq l_transfereReq = new TransfereReq();
+	    	l_transfereReq.setFromAccountNo(accountTo);
+			l_transfereReq.setToAccountNo(accountFrom);
+			l_transfereReq.setTypeOperation(AccountTypeConstant.DIVERS);
+			l_transfereReq.setDiver(true);
+			return l_transfereReq;
+		}
+
+}

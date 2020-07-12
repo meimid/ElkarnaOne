@@ -1,0 +1,555 @@
+package ihmcredit;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.ui.ModelMap;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.meimid.core.dto.AccountDto;
+import com.meimid.core.dto.AccountInfo;
+import com.meimid.core.dto.AccountLight;
+import com.meimid.core.dto.AccountsMovementLight;
+import com.meimid.core.model.Account;
+import com.meimid.core.model.Personne;
+import com.meimid.core.model.UserRoles;
+import com.meimid.core.model.Users;
+
+@RestController
+@PreAuthorize("hasAuthority('ROLE_USER')")
+@RequestMapping("/account")
+@CrossOrigin
+public class AccountController extends AbstractClassBase {
+	
+	//private static final String URLELKANA = "http://www.elkarna.com:8080/ElkarnaNet/";
+	
+	private static final String URLELKANA = "http://localhost:8080/ElkarnaNet/";
+	
+	 
+	@RequestMapping(value = "/listAllAccounts", produces = MediaType.APPLICATION_JSON_VALUE)
+	 @ResponseBody
+	public List<AccountLight> getAllAccountJeson(final HttpServletRequest request ) throws JsonProcessingException {
+		Users userLoged= (Users) request.getAttribute("userLoged");
+		
+		List<AccountLight> list = accountService.getAllAccountLight(userLoged.getUserLogin());
+
+		
+		return list;
+	}
+	
+	
+	@CrossOrigin
+		@RequestMapping(value = "/listAllAccountsLigth", produces = MediaType.APPLICATION_JSON_VALUE)
+		 @ResponseBody
+		public List<AccountDto> getAllAccountLight(final HttpServletRequest request) throws JsonProcessingException {
+
+
+		Users userLoged= (Users) request.getAttribute("userLoged");
+			
+			return accountService.getAllAccounDto(userLoged.getUserLogin());
+		}
+	
+	
+	@RequestMapping(value = "/saveAccount", consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	Person saveAccount(@RequestBody final Person pers,final HttpServletRequest request)
+	        throws UnsupportedEncodingException, JsonProcessingException
+
+	{
+	//	UtilsConvert.crossVlidation(request,response);
+		
+		if (pers == null || StringUtils.isEmpty(pers.getLibelle())) {
+			final String error = messageSource.getMessage(
+			        "label.name.required", null,
+			        LocaleContextHolder.getLocale());
+			pers.setMessage(error);
+			return pers;
+
+		}
+		if (StringUtils.isEmpty(pers.getType())||StringUtils.isEmpty(pers.getType().trim())) {
+			final String error = messageSource.getMessage(
+			        "type.account.required", null,
+			        LocaleContextHolder.getLocale());
+			pers.setMessage(error);
+			return pers;
+
+		}
+		
+		Users userLoged= (Users) request.getAttribute("userLoged");
+		
+		pers.setMessage("");
+		pers.setLibelle(pers.getLibelle().trim().replaceAll("\\s+", " "));
+
+		// verify if name does not exist
+		String l_numCompte = pers.getNumCompte();
+		final String l_numPersonne = pers.getNumPersonne();
+
+		if (StringUtils.isEmpty(l_numPersonne)) {
+
+			final List<Account> lListAccount = accountService
+			        .getAccountByExacteName(pers.getLibelle(),userLoged.getUserLogin());
+			if (!org.springframework.util.CollectionUtils.isEmpty(lListAccount)) {
+				final String error = messageSource.getMessage(
+				        "label.exist.account.with.samename", null,
+				        LocaleContextHolder.getLocale());
+				pers.setMessage(error);
+				return pers;
+			}
+			if (!StringUtils.isEmpty(l_numCompte)) {
+				l_numCompte = userLoged.getCode()+pers.getNumCompte().trim()
+				        .replaceAll("\\s+", " ");
+				final Account lc = accountService.getAccountByNum(l_numCompte);
+				if (lc != null) {
+					final String error = messageSource.getMessage(
+					        "label.existe.compte.meme.numero", null,
+					        LocaleContextHolder.getLocale());
+					pers.setMessage(error);
+					return pers;
+
+				}
+			}
+		}
+
+		final Personne newPers = new Personne();
+		newPers.setNom(pers.getLibelle());
+		newPers.setAdresse(pers.getAdresse());
+		newPers.setNumTelFixe(pers.getTel());
+		newPers.setNumTelCell(pers.getTel());
+		newPers.setUser(userLoged);
+		final Account account = new Account();
+		account.setNumAccount(l_numCompte);
+		new String(pers.getLibelle().getBytes("8859_1"), "UTF8");
+		account.setLibelle(pers.getLibelle());
+		// account.setLibelle(libInter
+		account.setUser(userLoged);
+		account.setTypeCompte(pers.getType());
+
+		account.setPerson(newPers);
+		
+		if (StringUtils.isEmpty(l_numPersonne)) {
+			accountService.saveAccount(account);
+		} else {
+
+			accountService.updateAccount(account);
+		}
+		pers.setNumCompte(account.getNumAccount());
+		pers.setNumPersonne(newPers.getNumPersonne().toString());
+	
+		return pers;
+
+	}
+	
+	
+	
+	@RequestMapping(value = "/accountDetail", consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public MvtBean getAccountDetail(@RequestBody final OperationBean operation) throws JsonProcessingException {
+		final String l_numCompte = operation.getNumCompte();
+
+		final Date l_fromDate = operation.getFrom();
+		final Date l_toDate = operation.getTo();
+
+		if (!StringUtils.isEmpty(l_numCompte)) {
+			long start = System.currentTimeMillis();
+			final AccountDto account = accountService
+			        .getAccountLightByNumCompte(l_numCompte);
+			long elapsedTimeMillis = System.currentTimeMillis() - start;
+			System.out.println("elapsedTimeMillis verif " + elapsedTimeMillis
+			        + " sn");
+			if (account != null) {
+				start = System.currentTimeMillis();
+				final List<AccountsMovementLight> l_list = accountService
+				        .getAccountsMovementLightByNameAccount(l_numCompte,
+				                l_fromDate, l_toDate);
+				elapsedTimeMillis = System.currentTimeMillis() - start;
+				System.out.println(" elapsedTimeMillis account "
+				        + elapsedTimeMillis + " sn");
+				final MvtBean mvt = new MvtBean();
+				mvt.setListMvt(l_list);
+				start = System.currentTimeMillis();
+				mvt.setSolde(accountService.getAccountBalance(account
+				        .getNumAccount()));
+				elapsedTimeMillis = System.currentTimeMillis() - start;
+				System.out.println("elapsedTimeMillis sold "
+				        + elapsedTimeMillis + " sn");
+				// Get elapsed time in seconds
+				return mvt;
+
+			} 
+
+		}
+		return null;
+	}
+	
+	@RequestMapping(value = "/solde", consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	InfoBean soldeAccount(Compte operation) {
+		
+		final String numAccount =operation.getNumCompte();// 
+		//String str=	request.getParameter("numAccount");
+		//String str=	request.getParameter("numCompte");
+
+		final InfoBean inf = new InfoBean();
+		final Account ac = accountService.getAccountByNum(numAccount);
+		if (ac != null) {
+			ac.setLibSolde(messageSource.getMessage("label.rest.mvt", null,
+			        LocaleContextHolder.getLocale()));
+
+			//accountsMovementService.soldeCompte(ac);
+			accountService.soldeCompte(ac);
+			inf.setCode("0");
+		}
+		return inf;
+
+	}
+	
+	
+	@RequestMapping(value = "/soldeCompte",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	InfoBean soldeCompte( @RequestParam(required = true) final String  numCompte,final HttpServletRequest request) throws JsonProcessingException {
+		final InfoBean inf = new InfoBean();
+		final Account ac = accountService.getAccountByNum(numCompte);
+		if (ac != null) {
+			ac.setLibSolde(messageSource.getMessage("label.rest.mvt", null,
+			        LocaleContextHolder.getLocale()));
+			Users userLoged= (Users) request.getAttribute("userLoged");
+			//accountsMovementService.soldeCompte(ac);
+			accountService.soldeCompte(ac);
+			inf.setCode("0");
+		}
+		return inf;
+		
+		
+	}
+	
+	@RequestMapping(value = "/listAllAccountDebit",  produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	List<AccountInfo> getAllAccountDebit(final ModelMap model,
+	        final HttpServletRequest request) throws JsonProcessingException {
+		List<AccountInfo> l_list;
+		final List<String> l_types = new ArrayList();
+		l_types.add("CCLIENT");
+		l_types.add("CFOURNISSEUR");
+		//l_types.add(AccountCodeEnums.CDEPOT.getCode());
+		final String l_debit = request.getParameter("credit");
+		long l_some = 0;
+		Users userLoged= (Users) request.getAttribute("userLoged");
+		if ("d".equals(l_debit)) {
+			l_list = accountService.getAllAccountsNegatif(l_types,userLoged.getUserLogin());
+			for (final AccountInfo l_acount : l_list) {
+				l_some += l_acount.getBalance();
+			}
+			
+
+			
+		} else {
+
+			l_list = accountService.getAllAccountsPositif(l_types,userLoged.getUserLogin());
+			for (final AccountInfo l_acount : l_list) {
+				l_some += l_acount.getBalance();
+			}
+			
+
+			
+		}
+		return l_list;
+	}
+	
+	
+	
+	
+	
+	@RequestMapping(value = "/modifyPassdy",
+	        headers = { "Content-type=application/json" },
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	Users modifyUserPassword(@RequestBody final Users userP) throws JsonProcessingException {
+		if (userP == null || StringUtils.isEmpty(userP.getUserLogin())) {
+			final String msg = "label.name.required";
+			userP.setMessage(msg);
+			return userP;
+
+		}
+
+		if (StringUtils.isEmpty(userP.getUserLogin())
+		        || StringUtils.isEmpty(userP.getPassword())
+		        || StringUtils.isEmpty(userP.getPrimaryRole())) {
+			String msg = "";
+			if (StringUtils.isEmpty(userP.getUserLogin())) {
+				msg = "label.name.required";
+			}
+			if (StringUtils.isEmpty(userP.getPassword())) {
+				msg = "lable.password.necessaire";
+
+			}
+			if (StringUtils.isEmpty(userP.getPrimaryRole())) {
+				msg = "label.role.required";
+
+			}
+
+			userP.setMessage(msg);
+			return userP;
+
+		}
+		if (userP.getUserLogin().indexOf(" ") >= 0) {
+			final String msg =    "label.user.login.not.valide";
+			userP.setMessage(msg);
+			return userP;
+
+		}
+
+			final Users user = userService.getUserByLogin(userP.getUserLogin());
+			if(user.getPassword().equals(userP.getCurrentPassword())){
+				user.setPassword(userP.getNewPassword());
+				userService.updateUser(user);
+				
+			}
+			else {
+				userP.setMessage("old.paaword.invalide");
+				return userP;
+				
+			}
+			
+			
+		userP.setMessage("");
+		
+		return userP;
+
+	}
+	
+	
+	
+	
+	
+	
+	
+	@RequestMapping(value = "/listAllUser",  produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	 List<Users> getAllUser( final HttpServletRequest request) {
+		return  userService.getAllUser();
+		
+	}
+	
+	
+	@RequestMapping(value = "/accountDetailHisto",
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public MvtBean getAccountDetailHisto(final ModelMap model,
+
+	@RequestBody final OperationBean operation) throws JsonProcessingException {
+		final String l_numCompte = operation.getNumCompte();
+
+		final Date l_fromDate = operation.getFrom();
+		final Date l_toDate = operation.getTo();
+
+		if (!StringUtils.isEmpty(l_numCompte)) {
+			System.currentTimeMillis();
+			final AccountDto account = accountService
+			        .getAccountLightByNumCompte(l_numCompte);
+
+			if (account != null) {
+				System.currentTimeMillis();
+				final List<AccountsMovementLight> l_list = accountService
+				        .getAccountsMovementLightHistoByNameAccount(
+				                l_numCompte, l_fromDate, l_toDate);
+				final MvtBean mvt = new MvtBean();
+				mvt.setListMvt(l_list);
+				mvt.setSolde(accountService.getAccountBalance(account
+				        .getNumAccount()));
+				mvt.setSolde(0l);
+				// elapsedTimeMillis = System.currentTimeMillis() - start;
+				// System.out.println("elapsedTimeMillis sold "
+				// + elapsedTimeMillis + " sn");
+				// Get elapsed time in seconds
+				return mvt;
+
+			} else {
+				model.put("error", messageSource.getMessage(
+				        "lable.compte.not.found", null,
+				        LocaleContextHolder.getLocale()));
+			}
+
+		}
+		return null;
+	}
+
+	@RequestMapping(value = "/createOnlineAccount",
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE + ";charset=utf-8")
+	@ResponseBody
+	public String createOnlieAccount(@RequestBody final OperationBean operation,final HttpServletRequest request) throws JsonProcessingException {
+		final String l_numCompte = operation.getNumCompte();
+		final AccountDto account = accountService
+		        .getAccountLightByNumCompte(l_numCompte);
+		Users userLoged= (Users) request.getAttribute("userLoged");
+		if (account != null) {
+			HttpURLConnection con =null;
+			
+			 UserLight usel=getUser(userLoged);
+				  if(usel!=null && !StringUtils.isEmpty(usel.getValue())){
+					  UserLogin newUser=getNewUser();
+					newUser.setUserLogin(account.getNumAccount());
+					newUser.setName(account.getLibelle());
+					newUser.setCode(userLoged.getUserLogin());
+					
+					try{
+				    con =getHttpURLConnection( URLELKANA+"online/savemodifyUserP");
+				    con.setRequestProperty("Authorization", usel.getValue());
+				    ObjectMapper mapper = new ObjectMapper();
+				    DataOutputStream out = new DataOutputStream(con.getOutputStream());
+					mapper.writeValue(out,newUser);
+					out.flush();
+					out.close();
+					int status = con.getResponseCode();
+					if(status==200)
+					{
+						BufferedReader in = new BufferedReader(
+								  new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
+								
+						StringBuffer content = new StringBuffer();
+						String inputLine;
+								while ((inputLine = in.readLine()) != null) {
+									
+								    content.append(inputLine);
+								}
+								in.close();
+								
+								con.disconnect();
+						return content.toString();
+					}
+					
+					
+				  }
+					
+					
+					catch(Exception ex){
+						con.disconnect();
+					}
+					finally {
+						con.disconnect();
+					}
+					
+				
+					
+				}
+				  
+				  
+				  
+				  
+				  
+			
+		}
+		
+		return "KO";
+	}
+	
+	
+	HttpURLConnection getHttpURLConnection(String urlstr) throws IOException{
+		
+		HttpURLConnection con =null;
+		
+		
+		
+		//	URL url = new URL("http://www.elkarna.com:8080/ElkarnaOne/welcome/token");
+			URL url= new URL(urlstr);
+			
+				con = (HttpURLConnection) url.openConnection();
+			con.setRequestMethod("POST");			
+			con.setRequestProperty("Content-Type", "application/json");
+			con.setRequestProperty("Accept", "application/json");
+			con.setDoOutput(true);
+			return con;
+
+	}
+	UserLight getUser(Users userLoged){
+		HttpURLConnection con =null;
+		UserLight usel=null;
+		try{
+		//	
+			
+			
+			con =getHttpURLConnection(URLELKANA+"welcome/token");
+			con.setRequestMethod("POST");				
+			Map<String, String> parameters = new HashMap();
+			parameters.put("userLogin", "ONLINE");
+			parameters.put("password", "ONLINE");
+			ObjectMapper mapper = new ObjectMapper();
+			DataOutputStream out = new DataOutputStream(con.getOutputStream());
+			mapper.writeValue(out, parameters);
+			out.flush();
+			out.close();
+			int status = con.getResponseCode();
+			if(status==200){
+			
+			BufferedReader in = new BufferedReader(
+					  new InputStreamReader(con.getInputStream()));
+					String inputLine;
+					StringBuffer content = new StringBuffer();
+					while ((inputLine = in.readLine()) != null) {						
+					    content.append(inputLine);
+					}
+					in.close();
+			
+					usel=mapper.readValue(content.toString(), UserLight.class);
+					con.disconnect();
+					
+					return usel;
+			
+			}
+			}
+			catch (Exception e) {
+				con.disconnect();
+			}
+			finally{
+				con.disconnect();
+				}
+		return usel;
+			}
+	
+	
+	
+	UserLogin getNewUser(){
+		UserLogin newUser=new UserLogin();
+		//elk
+		newUser.setPassword("bfe03036f7ec78b9ae3aefa7e8716f30");
+		newUser.setPrimaryRole("ROLE_USER");
+		
+		return newUser;
+	}
+	
+
+}

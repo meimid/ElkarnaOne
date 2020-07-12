@@ -1,0 +1,42 @@
+package ihmcredit;
+
+public class UserLogin extends Object {
+
+	private String	username;
+	private String	password;
+	private String	role;
+	private String	repassword;
+
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(final String username) {
+		this.username = username;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(final String password) {
+		this.password = password;
+	}
+
+	public String getRole() {
+		return role;
+	}
+
+	public void setRole(final String role) {
+		this.role = role;
+	}
+
+	public String getRepassword() {
+		return repassword;
+	}
+
+	public void setRepassword(final String repassword) {
+		this.repassword = repassword;
+	}
+
+}

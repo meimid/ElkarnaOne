@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:tx="http://www.springframework.org/schema/tx" 
+    xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans     
+           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+           http://www.springframework.org/schema/tx 
+           http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+           http://www.springframework.org/schema/context 
+           http://www.springframework.org/schema/context/spring-context-3.0.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd">
+
+
+ <context:annotation-config />
+<context:component-scan base-package="com.meimid"/>
+
+<bean id="applicationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">   
+    <property name="location" value="classpath:databseH2R.properties"/>
+</bean>
+<bean id="resourceBundle"
+      class="org.springframework.context.support.ReloadableResourceBundleMessageSource"
+      p:basename="classpath:locale/messages"
+      p:cacheSeconds="5"
+      p:defaultEncoding="UTF-8" />
+<bean id="classifiedDataSource"
+     class="org.springframework.jdbc.datasource.DriverManagerDataSource" >
+  <property name="driverClassName" value="${database.driver}" />
+   <property name="url" value="${user.url}" />
+  <property name="username" value="${user.name}" />
+  <property name="password" value="${user.password}" /> 
+  
+
+</bean>
+
+  
+<bean id="txManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+    <property name="sessionFactory" ref="sessionFactory"/>
+    <property name="dataSource" ref="classifiedDataSource"/>
+  
+    
+</bean>
+
+<tx:annotation-driven  transaction-manager="txManager"/>
+<bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+    <property name="dataSource" ref="classifiedDataSource"/>
+     <property name="packagesToScan" value="com.meimid" />
+    <property name="hibernateProperties">
+      <value>
+        hibernate.show_sq=${hibernate.show_sql}  
+        hibernate.hbm2ddl.auto=${hibernate.hbm2ddl.auto}
+        hibernate.dialect=${hibernate.dialect}
+        hibernate.connection.useUnicode=true
+        hibernate.connection.characterEncoding="UTF-8"
+        hibernate.connection.charSet="UTF-8"
+     
+                  
+      </value>
+    </property>
+  </bean>
+  
+
+</beans>

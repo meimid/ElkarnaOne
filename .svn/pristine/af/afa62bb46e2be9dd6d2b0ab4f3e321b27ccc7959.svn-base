@@ -1,0 +1,75 @@
+package ihmcredit;
+
+import java.util.Collection;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+
+import com.meimid.core.model.User;
+
+
+/**
+ * Informations de utilisateur authentifié dans Spring.
+ */
+public class UserAuthentication implements Authentication {
+
+	/**
+	 *
+	 */
+	private static final long serialVersionUID = 7680465321764713766L;
+
+	/**
+	 * Infos de l'utilsiateur JWT.
+	 */
+	private final User user;
+
+	/**
+	 * Indicateur d'authentification.
+	 */
+	private boolean authenticated = true;
+
+	/**
+	 * Constructeur.
+	 *
+	 * @param user
+	 *            l'objet User JWT
+	 */
+	public UserAuthentication(final User user) {
+		this.user = user;
+	}
+
+	//@Override
+	public String getName() {
+		return this.user.getUsername();
+	}
+
+	//@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		return this.user.getAuthorities();
+	}
+
+	//@Override
+	public Object getCredentials() {
+		return this.user.getPassword();
+	}
+
+	//@Override
+	public User getDetails() {
+		return this.user;
+	}
+
+	//@Override
+	public Object getPrincipal() {
+		return this.user.getUsername();
+	}
+
+	//@Override
+	public boolean isAuthenticated() {
+		return this.authenticated;
+	}
+
+	//@Override
+	public void setAuthenticated(final boolean authenticated) {
+		this.authenticated = authenticated;
+	}
+}

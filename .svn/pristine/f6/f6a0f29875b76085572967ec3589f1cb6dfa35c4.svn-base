@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<b:beans xmlns:b="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.springframework.org/schema/security"
+        xmlns:oauth="http://www.springframework.org/schema/security/oauth"
+        xsi:schemaLocation="http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-3.2.xsd http://www.springframework.org/schema/security/oauth http://www.springframework.org/schema/security/spring-security-oauth.xsd http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.2.xsd">
+ 
+    <!-- Global Security Settings -->
+    <global-method-security pre-post-annotations="enabled" />
+<http>
+
+      <intercept-url  pattern="/admin*" access="ROLE_USER" />
+     <!-- <intercept-url requires-channel="https" pattern="/**" access="hasRole('ROLE_USER')" />
+    -->
+  
+</http>
+    <!-- Form and Security Access Configuration -->
+    <http use-expressions="true" access-denied-page="/403" disable-url-rewriting="true">
+     
+        <session-management invalid-session-url="/login1?time=1">
+            <concurrency-control max-sessions="1" expired-url="/login1?time=1" />
+        </session-management>
+ 
+        <form-login login-page="/login1" login-processing-url="/login1" default-target-url="/" always-use-default-target="true" authentication-failure-url="/login1?err=1" username-parameter="username" password-parameter="password" />
+ 
+        <logout logout-url="/logout" logout-success-url="/login1?out=1" delete-cookies="JSESSIONID" invalidate-session="true" />
+ 
+        <intercept-url requires-channel="https" pattern="/login*" access="permitAll()" />
+        <intercept-url requires-channel="https" pattern="/**" access="hasRole('ROLE_USER')" />
+    </http>
+ 
+    <!-- Authentication Providers for Form Login -->
+    <authentication-manager>
+  <authentication-provider>
+    <user-service>
+        <user name="user" password="user" authorities="ROLE_USER" />
+    </user-service>
+</authentication-provider>
+</authentication-manager>
+    <!-- ADD THE DATASOURCES HERE -->
+</b:beans>

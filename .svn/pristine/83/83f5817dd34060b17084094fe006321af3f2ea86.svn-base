@@ -1,0 +1,102 @@
+package ihmcredit;
+
+
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.meimid.core.model.UserRoles;
+import com.meimid.core.model.Users;
+
+@RestController
+@PreAuthorize("hasAuthority('ROLE_ONLINE')")
+@RequestMapping("/online")
+@CrossOrigin
+	 
+public class OnlineController  extends AbstractClassBase {
+	
+	
+	
+
+
+	@RequestMapping(value = "/savemodifyUserP",
+	        headers = { "Content-type=application/json" },
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	Users saveUser(@RequestBody final Users userP) throws JsonProcessingException {
+		if (userP == null || StringUtils.isEmpty(userP.getUserLogin())) {
+			final String msg = messageSource.getMessage("label.name.required",
+			        null, LocaleContextHolder.getLocale());
+			userP.setMessage(msg);
+			return userP;
+
+		}
+
+		if (StringUtils.isEmpty(userP.getUserLogin())
+		        || StringUtils.isEmpty(userP.getPassword())
+		        || StringUtils.isEmpty(userP.getPrimaryRole())) {
+			String msg = "";
+			if (StringUtils.isEmpty(userP.getUserLogin())) {
+				msg = messageSource.getMessage("label.name.required", null,
+				        LocaleContextHolder.getLocale());
+			}
+			if (StringUtils.isEmpty(userP.getPassword())) {
+				msg = messageSource.getMessage("lable.password.necessaire",
+				        null, LocaleContextHolder.getLocale());
+
+			}
+			if (StringUtils.isEmpty(userP.getPrimaryRole())) {
+				msg = messageSource.getMessage("label.role.required", null,
+				        LocaleContextHolder.getLocale());
+
+			}
+
+			userP.setMessage(msg);
+			return userP;
+
+		}
+		
+		if (userP.getUserLogin().indexOf(" ") >= 0) {
+			final String msg = messageSource.getMessage(
+			        "label.user.login.not.valide", null,
+			        LocaleContextHolder.getLocale());
+			userP.setMessage(msg);
+			return userP;
+
+		}
+
+			final Users user = userService.getUserByLogin(userP.getUserLogin());
+			if (user != null) {
+				final String msg = messageSource.getMessage("lable.exit.user",
+				        null, LocaleContextHolder.getLocale());
+				userP.setMessage(msg);
+				userP.setCode("-1");;
+				return userP;
+
+			}
+		
+		
+		userP.setEnabled(1);
+		final UserRoles userRoles = new UserRoles();
+		userRoles.setUser(userP);
+		userRoles.setRole(userP.getPrimaryRole());
+		userP.getRoles().add(userRoles);
+		userP.setUserLogin(userP.getUserLogin().toUpperCase());
+		userService.updateUser(userP);
+		userP.setCreated(true);
+		userP.setMessage("");		
+		return userP;
+
+	}
+	
+	
+	
+
+}

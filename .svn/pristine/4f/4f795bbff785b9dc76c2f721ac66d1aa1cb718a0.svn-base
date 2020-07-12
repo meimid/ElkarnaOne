@@ -1,0 +1,7 @@
+user.url=jdbc:mysql://localhost/credit
+user.name=root
+user.password=meimid
+database.driver=com.mysql.jdbc.Driver
+hibernate.dialect=org.hibernate.dialect.MySQLDialect
+hibernate.hbm2ddl.auto=update
+hibernate.show_sql=true

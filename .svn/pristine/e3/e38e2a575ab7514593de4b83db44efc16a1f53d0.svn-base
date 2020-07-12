@@ -1,0 +1,305 @@
+package ihmcredit;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.ui.ModelMap;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.meimid.core.model.Users;
+
+@RestController
+@PreAuthorize("hasAuthority('ROLE_USER')")
+@RequestMapping("/account")
+@CrossOrigin
+public class AccountController extends AbstractClassBase {
+	 
+	
+	private static final String URLELKANA = "http://www.elkarna.com:8080/ElkarnaOne/";
+		
+	
+	
+	
+		@CrossOrigin
+	@RequestMapping(value = "/accountDetail", consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE + ";charset=utf-8")
+	@ResponseBody
+	public String getAccountDetail(@RequestBody final OperationBean operation,HttpServletRequest request) throws JsonProcessingException {
+		
+	Users userLoged= (Users) request.getAttribute("userLoged");
+	operation.setNumCompte(userLoged.getUserLogin());
+	
+		//if (!StringUtils.isEmpty(l_numCompte)) {
+			HttpURLConnection con =null;
+			try{
+				       String urlPub=userLoged.getUrl();
+				       if(StringUtils.isEmpty(urlPub)){
+					        urlPub=URLELKANA;
+				         }
+				    UserLight usel=getUser(userLoged);
+						if(usel!=null && !StringUtils.isEmpty(usel.getValue())){
+						operation.setNumCompte(userLoged.getUserLogin());
+						con =getHttpURLConnection(urlPub+"online/accountDetail");
+						con.setRequestProperty("Authorization", usel.getValue());
+						ObjectMapper mapper = new ObjectMapper();
+						DataOutputStream out = new DataOutputStream(con.getOutputStream());
+							mapper.writeValue(out, operation);
+							out.flush();
+							out.close();
+							int status = con.getResponseCode();
+							if(status==200)
+							{
+								BufferedReader in = new BufferedReader(
+										  new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
+										
+								StringBuffer content = new StringBuffer();
+								String inputLine;
+										while ((inputLine = in.readLine()) != null) {
+											
+										    content.append(inputLine);
+										}
+										in.close();
+										
+										con.disconnect();
+								return content.toString();
+							}
+							
+						
+							
+						}
+						
+						
+			}
+						
+			
+			catch(Exception ex){
+				con.disconnect();
+			}
+			finally {
+				con.disconnect();
+			}
+
+			//} 
+
+		
+		return null;
+	}
+	
+	
+		@RequestMapping(value = "/currentUser",
+		        produces = MediaType.APPLICATION_JSON_VALUE)
+		public @ResponseBody
+		Users modifyUserPassword(final HttpServletRequest request) throws JsonProcessingException {
+			
+		Users userL=(Users) request.getAttribute("userLoged");
+		String str=userL.getPrimaryRole();
+		str=str.replace("ROLE_", "");
+		userL.setPrimaryRole(str);
+	return userL;
+		}
+	
+		@RequestMapping(value = "/modifyPassdy",
+		        headers = { "Content-type=application/json" },
+		        produces = MediaType.APPLICATION_JSON_VALUE)
+		public @ResponseBody
+		Users modifyUserPassword(@RequestBody final Users userP) throws JsonProcessingException {
+			if (userP == null || StringUtils.isEmpty(userP.getUserLogin())) {
+				final String msg = messageSource.getMessage("label.name.required",
+				        null, LocaleContextHolder.getLocale());
+				userP.setMessage(msg);
+				return userP;
+
+			}
+
+			if (StringUtils.isEmpty(userP.getUserLogin())
+			        || StringUtils.isEmpty(userP.getPassword())
+			        ) {
+				String msg = "";
+				if (StringUtils.isEmpty(userP.getUserLogin())) {
+					msg = messageSource.getMessage("label.name.required", null,
+					        LocaleContextHolder.getLocale());
+				}
+				if (StringUtils.isEmpty(userP.getPassword())) {
+					msg = messageSource.getMessage("lable.password.necessaire",
+					        null, LocaleContextHolder.getLocale());
+
+				}
+				
+
+				userP.setMessage(msg);
+				return userP;
+
+			}
+			if (userP.getUserLogin().indexOf(" ") >= 0) {
+				final String msg = messageSource.getMessage(
+				        "label.user.login.not.valide", null,
+				        LocaleContextHolder.getLocale());
+				userP.setMessage(msg);
+				return userP;
+
+			}
+			
+			
+
+				final Users user = userService.getUserByLogin(userP.getUserLogin());
+				if(user.getPassword().equals(userP.getCurrentPassword())){
+					user.setPassword(userP.getNewPassword());
+					userService.updateUser(user);
+					
+				}
+				else {
+					userP.setMessage("old.paaword.invalide");
+					return userP;
+					
+				}
+			
+			
+			return userP;
+
+		}
+	
+	
+	
+	
+	
+	
+	
+	
+	@RequestMapping(value = "/accountDetailHisto",
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public String getAccountDetailHisto(final ModelMap model,
+
+	@RequestBody final OperationBean operation) throws JsonProcessingException {
+		final String l_numCompte = operation.getNumCompte();
+
+		final Date l_fromDate = operation.getFrom();
+		final Date l_toDate = operation.getTo();
+		HttpURLConnection con=null;
+		if (!StringUtils.isEmpty(l_numCompte)) {
+			try{
+				URL url = new URL("https://www.elkarna.com/meimid");
+				 con = (HttpURLConnection) url.openConnection();
+				con.setRequestMethod("POST");
+				con.setRequestProperty("Content-Type", "application/json");
+				
+				
+			}
+			catch(Exception ex ){
+				
+				con.disconnect();
+			}
+			
+			
+			
+			
+			
+
+			} else {
+				model.put("error", messageSource.getMessage(
+				        "lable.compte.not.found", null,
+				        LocaleContextHolder.getLocale()));
+			}
+
+		
+		return null;
+	}
+	
+	HttpURLConnection getHttpURLConnection(String urlstr) throws IOException{
+		
+		HttpURLConnection con =null;
+		
+		
+		
+			URL url= new URL(urlstr);
+			
+				con = (HttpURLConnection) url.openConnection();
+			con.setRequestMethod("POST");			
+			con.setRequestProperty("Content-Type", "application/json");
+			con.setRequestProperty("Accept", "application/json");
+			con.setDoOutput(true);
+			return con;
+
+	}
+	
+	
+	UserLight getUser(Users userLoged){
+		HttpURLConnection con =null;
+		UserLight usel=null;
+		try{
+		//	
+			String urlPub=userLoged.getUrl();
+			if(StringUtils.isEmpty(urlPub)){
+				urlPub=URLELKANA;
+			}
+			
+			con =getHttpURLConnection(urlPub+"welcome/token");
+			con.setRequestMethod("POST");				
+			Map<String, String> parameters = new HashMap();
+			parameters.put("userLogin", "ONLINE");
+			parameters.put("password", "ONLINE");
+			ObjectMapper mapper = new ObjectMapper();
+			DataOutputStream out = new DataOutputStream(con.getOutputStream());
+			mapper.writeValue(out, parameters);
+			out.flush();
+			out.close();
+			int status = con.getResponseCode();
+			if(status==200){
+			
+			BufferedReader in = new BufferedReader(
+					  new InputStreamReader(con.getInputStream()));
+					String inputLine;
+					StringBuffer content = new StringBuffer();
+					while ((inputLine = in.readLine()) != null) {						
+					    content.append(inputLine);
+					}
+					in.close();
+			
+					usel=mapper.readValue(content.toString(), UserLight.class);
+					con.disconnect();
+					return usel;
+			
+			}
+			}
+			catch (Exception e) {
+				con.disconnect();
+			}
+			finally{
+				con.disconnect();
+				}
+		return usel;
+			}
+			
+		
+		
+		
+	}
+	
+	
+	
+
+
