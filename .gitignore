@@ -5,13 +5,15 @@
 */target/**
 **/META-INF/
 !.mvn/wrapper/maven-wrapper.jar
-
+*/.svn/*
+*/.svn/**
 # dependencies
 /node_modules
 
 # IDEs and editors
 /.idea
 .project
+.svn
 .classpath
 .c9/
 *.launch
