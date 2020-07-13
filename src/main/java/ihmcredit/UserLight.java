@@ -10,6 +10,7 @@ public class UserLight implements Serializable {
 	String code;
 	String value;	
 	long stamp;
+	int expire;
 	public String getUserLogin() {
 		return userLogin;
 	}
@@ -47,6 +48,13 @@ public class UserLight implements Serializable {
 	public void setStamp(long stamp) {
 		this.stamp = stamp;
 	}
+	public int getExpire() {
+		return expire;
+	}
+	public void setExpire(int expire) {
+		this.expire = expire;
+	}
+	
 	
 	
 	

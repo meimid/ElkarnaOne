@@ -18,6 +18,9 @@ import com.meimid.core.model.Users;
 import com.meimid.core.service.IUserService;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
 
 @Controller
 @RequestMapping("/welcome")
@@ -48,7 +51,26 @@ UtilsConvert.crossVlidation(request,response);
 			
 			if(user!=null &&  user.getPassword().equals(userL.getPassword()) && user.isEnabled() ){
 
-				 UserLight userll=UtilsConvert.UpdateUserLight(userL);
+				if( user.isTempUser()) {
+					long currentTime = System.currentTimeMillis();
+					Date dt=user.getDateCreation();
+					
+					LocalDate currentDate = LocalDate.now();
+					LocalDate oneMonthsAgo = LocalDate.now().plusMonths(-1); 
+					
+					LocalDate date2  = dt.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+					
+					if(date2.isBefore(oneMonthsAgo))
+					{
+						
+						userL.setCode("ko");
+						userL.setExpire(1);
+						return  userL;
+					}
+			        
+				}
+				
+				UserLight userll=UtilsConvert.UpdateUserLight(userL);
 				 response.addCookie(new Cookie("JWTSESSIONID", userL.getUserLogin()));
 				 DiffterFilter.mapAI.put(userll.getUserLogin(),userll.getValue());
 				return userll;// UtilsConvert.UpdateUserLight(userL);
