@@ -2,8 +2,13 @@ package ihmcredit;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -17,8 +22,14 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +46,18 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Element;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.Rectangle;
+import com.itextpdf.text.pdf.BaseFont;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
 import com.meimid.core.dto.AccountDto;
 import com.meimid.core.dto.AccountInfo;
 import com.meimid.core.dto.AccountLight;
@@ -49,6 +72,7 @@ import com.meimid.core.model.Users;
 @RequestMapping("/account")
 @CrossOrigin
 public class AccountController extends AbstractClassBase {
+	
 	
 	//private static final String URLELKANA = "http://www.elkarna.com:8080/ElkarnaNet/";
 	
@@ -88,7 +112,7 @@ public class AccountController extends AbstractClassBase {
 	{
 	//	UtilsConvert.crossVlidation(request,response);
 		
-		if (pers == null || StringUtils.isEmpty(pers.getLibelle())) {
+		if (pers == null || StringUtils.isEmpty(pers.getLibelle()) || StringUtils.isEmpty(pers.getLibelle().trim())  ) {
 			final String error = messageSource.getMessage(
 			        "label.name.required", null,
 			        LocaleContextHolder.getLocale());
@@ -145,15 +169,17 @@ public class AccountController extends AbstractClassBase {
 		newPers.setAdresse(pers.getAdresse());
 		newPers.setNumTelFixe(pers.getTel());
 		newPers.setNumTelCell(pers.getTel());
+		newPers.setEmail(pers.getEmail());
 		newPers.setUser(userLoged);
 		final Account account = new Account();
 		account.setNumAccount(l_numCompte);
+		
 		new String(pers.getLibelle().getBytes("8859_1"), "UTF8");
 		account.setLibelle(pers.getLibelle());
 		// account.setLibelle(libInter
 		account.setUser(userLoged);
 		account.setTypeCompte(pers.getType());
-
+		
 		account.setPerson(newPers);
 		
 		if (StringUtils.isEmpty(l_numPersonne)) {
@@ -168,6 +194,95 @@ public class AccountController extends AbstractClassBase {
 		return pers;
 
 	}
+	
+	
+	@RequestMapping(value = "/updatePersonne", consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	Person updatePersonneAccount(@RequestBody final Person pers,final HttpServletRequest request)
+	        throws UnsupportedEncodingException, JsonProcessingException
+
+	{
+	//	UtilsConvert.crossVlidation(request,response);
+		
+		if (pers == null || StringUtils.isEmpty(pers.getLibelle()) || StringUtils.isEmpty(pers.getLibelle().trim())) {
+			final String error = messageSource.getMessage(
+			        "label.name.required", null,
+			        LocaleContextHolder.getLocale());
+			pers.setMessage(error);
+			return pers;
+
+		}
+		if (StringUtils.isEmpty(pers.getNumCompte())||StringUtils.isEmpty(pers.getNumCompte().trim()) ) {
+			final String error = messageSource.getMessage(
+			        "lable.compte.not.exit", null,
+			        LocaleContextHolder.getLocale());
+			pers.setMessage(error);
+			return pers;
+
+		}
+		
+		Users userLoged= (Users) request.getAttribute("userLoged");
+		pers.setMessage("");
+		pers.setLibelle(pers.getLibelle().trim().replaceAll("\\s+", " "));
+		// verify if name does not exist
+		String l_numCompte = pers.getNumCompte();
+    
+				final Account lc = accountService.getAccountByNum(l_numCompte);
+				if (lc == null ) {
+					final String error = messageSource.getMessage(
+					        "lable.compte.not.exit", null,
+					        LocaleContextHolder.getLocale());
+					pers.setMessage(error);
+					return pers;
+
+				}
+				
+				
+			
+		
+
+		Personne newPers =personneService.findPersonnedByNum(lc.getPerson().getNumPersonne()) ;
+		//newPers.setUser(userLoged);
+		
+		if(!pers.getLibelle().equals(lc.getLibelle()))
+		{
+			final List<Account> lListAccount = accountService
+			        .getAccountByExacteName(pers.getLibelle(),userLoged.getUserLogin());
+			if (!org.springframework.util.CollectionUtils.isEmpty(lListAccount)) {
+				final String error = messageSource.getMessage(
+				        "label.exist.account.with.samename", null,
+				        LocaleContextHolder.getLocale());
+				pers.setMessage(error);
+				return pers;
+			}
+			
+			lc.setLibelle(pers.getLibelle());	
+			accountService.updateAccountLibelle(lc.getNumAccount(), lc.getLibelle());
+		}
+		
+			try {
+			 personneService.udatePersonneInfo(lc.getPerson().getNumPersonne(), pers.getLibelle(), pers.getTel(),pers.getEmail(),pers.getAdresse());
+			}
+			catch(Exception e ){
+				System.out.println("Exception Updating Personne " + e.getMessage());
+				pers.setMessage(messageSource.getMessage(
+				        "label.operation.not.saved", null,
+				        LocaleContextHolder.getLocale()));
+
+				e.printStackTrace();
+			}
+		
+		
+		
+		return pers;
+
+	}
+	
+	
+	
+	
+	
 	
 	
 	
@@ -557,5 +672,405 @@ public class AccountController extends AbstractClassBase {
 	
 	
 	
+	
+	@RequestMapping(value = "/loadPersonne", produces = MediaType.APPLICATION_JSON_VALUE)
+	 @ResponseBody
+	public Person getPersonne(final HttpServletRequest request ) throws JsonProcessingException {
+	   
+		Person loadPersnone=new Person();
+		String numCompte=request.getParameter("numCompte");
+		if(!StringUtils.isEmpty(numCompte)) {
+		 Account ac=accountService.getAccountByNum(numCompte);
+		 if(ac!=null) {
+			 
+			 loadPersnone.setLibelle(ac.getLibelle());
+			 loadPersnone.setAdresse(ac.getPerson().getAdresse());
+			 loadPersnone.setTel(ac.getPerson().getNumTelCell());
+			 loadPersnone.setEmail(ac.getPerson().getEmail());
+			 loadPersnone.setAdresse(ac.getPerson().getAdresse());
+			 loadPersnone.setNumCompte(numCompte);
+			 
+			 
+			 
+			 }
+		 }
+		 
+				return loadPersnone;
+	}
+	
+	
+	
+	
+	@RequestMapping("/downloadFile")
+    public ResponseEntity<Resource> downloadFile( HttpServletRequest request) {
+        // Load file as Resource
+	 String numAccount=request.getParameter("numAccount");
+	 loadData(numAccount);
+	 //String fileName=fileStorageProperties.getUploadDir()+File.separator+"book_new.csv";
+	 //String fileName=System.getProperty("user.home")+File.separator+"book_new.csv";
+	 String fileName=System.getenv("tempDire")+File.separator+numAccount+".csv";
+	
+        Resource resource = fileStorageService.loadFileAsResource(fileName);
+
+        // Try to determine file's content type
+        String contentType = null;
+        try {
+            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+        } catch (IOException ex) {
+          //  logger.info("Could not determine file type.");
+            System.out.println("Could not determine file type.");
+        }
+
+        // Fallback to the default content type if type could not be determined
+        if(contentType == null) {
+            contentType = "application/octet-stream";
+        }
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .body(resource);
+    }
+	 void loadData(String numAccount) {
+			// String fileName=fileStorageProperties.getUploadDir()+File.separator+"book_new.csv";
+			 //String fileName=System.getProperty("user.home")+File.separator+"book_new.csv";
+			 String fileName=System.getenv("tempDire")+File.separator+numAccount+".csv";
+			 File myFile=new File(fileName);
+			 CSVPrinter printer = null;
+			try {
+				 if(myFile.exists()){
+					 myFile.delete();
+					}
+				 myFile.createNewFile();
+				PrintWriter outln = new PrintWriter(myFile, "UTF-8");
+				outln.print('\ufeff');
+				Account account=accountService.getAccountByNum(numAccount);
+				 if (account != null) {
+					 final List<AccountsMovementLight> l_list = accountService
+						        .getAccountsMovementLightByNameAccount(numAccount,
+						                null, null);
+						 printer = CSVFormat.DEFAULT.withDelimiter(';').print(outln);		
+							 printer.printRecord("","","","الحساب "+account.getLibelle() +" "+ numAccount);
+						 Long soldI=accountService.getAccountBalance(account
+							        .getNumAccount());
+								 if(soldI>0) {
+									 printer.printRecord("","",""," له   "+soldI+ " " );
+								 }else {
+									 printer.printRecord("","","","عليه   "+soldI+ " " );
+								 }
+								 printer.printRecord("","",""," " );
+								 printer.printRecord("","",""," " );
+								 printer.printRecord( "عليه"," له"," التفاصيل" ," التاريخ");
+						 //System.out.println(" elapsedTimeMillis account "				        + elapsedTimeMillis + " sn");
+						 for(AccountsMovementLight ac:l_list ) {
+							 printer.printRecord(ac.getMontantDebit(),ac.getMontantCredit(),ac.getRemarque(), ac.getDatAS());
+						 }
+					} 
+				
+				 outln.flush();
+				 outln.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	
+	 }
+	 
+	 
+	 
+	 @RequestMapping("/downloadPDFFile")
+	    public ResponseEntity<Resource> downloadPDFFile( HttpServletRequest request) {
+	        // Load file as Resource
+		 String numAccount=request.getParameter("numAccount");
+		 loadPDFdData(numAccount);
+		 //String fileName=fileStorageProperties.getUploadDir()+File.separator+"book_new.csv";
+		 //String fileName=System.getProperty("user.home")+File.separator+"book_new.csv";
+		 String fileName=System.getenv("tempDire")+File.separator+numAccount+".pdf";
+		
+	        Resource resource = fileStorageService.loadFileAsResource(fileName);
+
+	        // Try to determine file's content type
+	        String contentType = null;
+	        try {
+	            contentType = request.getServletContext().getMimeType(resource.getFile().getAbsolutePath());
+	        } catch (IOException ex) {
+	          //  logger.info("Could not determine file type.");
+	            System.out.println("Could not determine file type.");
+	        }
+
+	        // Fallback to the default content type if type could not be determined
+	        if(contentType == null) {
+	            contentType = "application/octet-stream";
+	        }
+
+	        return ResponseEntity.ok()
+	                .contentType(MediaType.parseMediaType(contentType))
+	                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+	                .body(resource);
+	    }
+	 
+	 
+	 
+	 void loadPDFdData(String numAccount) {
+		 
+		 
+			
+			// String fileName=fileStorageProperties.getUploadDir()+File.separator+"book_new.csv";
+			// String fileName=System.getProperty("user.home")+File.separator+"book_new.pdf";
+			 String fileName=System.getenv("tempDire")+File.separator+numAccount+".pdf";
+			// String fileName=System.getenv("tempDire")+File.separator+numAccount+".csv";
+			 
+			 File myFile=new File(fileName);
+			
+			
+			 try {
+		            Document document = new Document();
+		            PdfWriter lpr=  PdfWriter.getInstance(document, new FileOutputStream(myFile));
+		            lpr.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+		            document.open();
+		            //addMetaData(document);
+		            //addTitlePage(document);
+		            //addContent(document);
+		        	//writer.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+		            getEtatDuCompte(document,numAccount);
+		            
+	                if(document!=null)
+	                {
+		              document.close();
+		            }
+		        } catch (Exception e) {
+		            e.printStackTrace();
+		        }
+			 
+			 
+			 
+			 
+		
+		    
+		 }
+	
+	
+	  void getEtatDuCompte( final Document doc, String numCompte) throws DocumentException,
+      IOException {
+	Account account=accountService.getAccountByNum(numCompte);
+	
+	if(account!=null) {
+	final PdfPTable table = new PdfPTable(4);
+	table.setWidthPercentage(100.0f);
+	table.setWidths(new float[] { 3.0f, 2.0f, 2.0f, 2.0f });
+	table.setSpacingBefore(10);
+	final BaseFont bf = BaseFont.createFont("trado.ttf",
+	        BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+
+	Font font = new Font(bf, 15, 0);
+	font.setColor(BaseColor.BLACK);
+//	writer.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+	final PdfPTable tbl = new PdfPTable(1);
+	String label= messageSource.getMessage("ETATCOMPT", null,
+	        LocaleContextHolder.getLocale());
+	   Paragraph preface = new Paragraph(label);
+	  //preface.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+	   PdfPCell cell = getPdfPCellNoBorder(preface);
+	
+	   
+	   PdfPCell cell2 =getPdfPCellNoBorder(preface);
+		//cell2.addElement(new Paragraph(label, font));
+		//cell2.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+		tbl.addCell(cell2);
+		cell2 = new PdfPCell();
+		cell2.addElement(new Paragraph(label+ " "+account.getLibelle()
+		        + "   " + account.getNumAccount(), font));
+		cell2.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+		cell2.setPaddingBottom(8);
+		cell2.setBorder(Rectangle.NO_BORDER);
+		tbl.addCell(cell2);
+		cell2 = new PdfPCell();
+		 label= messageSource.getMessage("label.credit", null,
+			        LocaleContextHolder.getLocale());
+	
+		 
+		 Long soldI=accountService.getAccountBalance(account
+			        .getNumAccount());
+				 if(soldI>0) {
+					 label+="  "+soldI+ " " ;
+						font.setColor(BaseColor.BLUE);
+				 }else {
+					 
+					 label= messageSource.getMessage("label.debit", null,
+						        LocaleContextHolder.getLocale());
+						font.setColor(BaseColor.RED);
+					 label+="  "+soldI+ " " ;
+				 }
+		 
+		    cell2.addElement(new Paragraph(label,font));
+			cell2.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+			cell2.setPaddingBottom(8);
+			cell2.setBorder(Rectangle.NO_BORDER);
+			tbl.addCell(cell2);
+		doc.add(tbl);
+		
+	   font = new Font(bf, 15, 0);
+		font.setColor(BaseColor.WHITE);
+				cell = new PdfPCell();
+	cell.setBackgroundColor(BaseColor.BLUE);
+	cell.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+	cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+	// if (l_not_personelAccount) {
+	cell.setPadding(4);
+	// } else {
+	// cell.setPadding(3);
+	// // write table header
+	// }
+	// if (l_not_personelAccount) {
+	ConstantPDFTrans lConstantPDFTrans=getPDFConstatEtatCompte();
+	cell.setPhrase(new Phrase(lConstantPDFTrans.getMtDebit(), font));
+	// cell.setPhrase(new Phrase("Published Date", font));
+	table.addCell(cell);
+
+	// cell.setPhrase(new Phrase("ISBN", font));
+	cell.setPhrase(new Phrase(lConstantPDFTrans.getMtcredit(), font));
+	table.addCell(cell);
+
+	// cell.setPhrase(new Phrase("Author", font));
+	cell.setPhrase(new Phrase(lConstantPDFTrans.getMtdetail(), font));
+	table.addCell(cell);
+
+	cell.setPhrase(new Phrase(lConstantPDFTrans.getDate(), font));
+	table.addCell(cell);
+
+	font = new Font(bf, 12, 0);
+	font.setColor(BaseColor.BLACK);
+//writer.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+	//cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+	cell.setBackgroundColor(BaseColor.WHITE);
+	Double sommeIN=0.0;
+	Double sommeOut=0.0;
+	
+	String sommeINStr="";
+	String sommeOutStr="";
+
+	 if (account != null) {
+		 final List<AccountsMovementLight> l_list = accountService
+			        .getAccountsMovementLightByNameAccount(numCompte,
+			                null, null);
+		 
+		 
+		 for (final AccountsMovementLight aBook : l_list) {
+
+				if (aBook.getMontantDebit() != null) {
+					
+					//table.addCell(aBook.getMontantDebit().toString());
+					cell.setPhrase(new Phrase(aBook.getMontantDebit().toString(), font));
+					table.addCell(cell);
+					sommeOut+=aBook.getMontantDebit();
+					
+				} else {
+					table.addCell("");
+				}
+				if (aBook.getMontantCredit() != null) {
+				//	table.addCell(aBook.getMontantCredit().toString());
+					
+					cell.setPhrase(new Phrase(aBook.getMontantCredit().toString(), font));
+					table.addCell(cell);
+					sommeIN+=aBook.getMontantCredit();
+				} else {
+					table.addCell("");
+				}
+				 PdfPCell pdfCell = new PdfPCell(new Phrase(
+				        aBook.getRemarque(), font));
+				pdfCell.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+				pdfCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+				// table.addCell(new Phrase(aBook.getLibelle(), font));
+				//table.addCell(pdfCell);
+				
+				cell.setPhrase(new Phrase(aBook.getRemarque(), font));
+				table.addCell(cell);
+				
+				
+			
+				// table.addCell(new Phrase(aBook.getLibelle(), font));
+				//table.addCell(pdfCell);
+				//table.addCell();
+				cell.setPhrase(new Phrase(aBook.getDatAS(), font));
+				table.addCell(cell);
+
+				// table.addCell(String.valueOf(aBook.getPrice()));
+			}
+		 
+		 
+		 label= messageSource.getMessage("lable.some", null,
+			        LocaleContextHolder.getLocale());
+		 if(sommeIN>0)
+		 {
+			sommeINStr=sommeIN.toString(); 
+		 }
+		 
+		 if(sommeOut>0)
+		 {
+			sommeOutStr=sommeOut.toString(); 
+		 }
+		  
+			cell.setPhrase(new Phrase(sommeOutStr, font));
+			table.addCell(cell);
+			cell.setPhrase(new Phrase(sommeINStr, font));
+			table.addCell(cell);
+			cell.setPhrase(new Phrase(label, font));
+			table.addCell(cell);
+			cell.setPhrase(new Phrase("", font));
+			table.addCell(cell);		 
+		 
+		 
+		 
+		 }
+	
+	
+
+
+	
+
+	doc.add(table);
+	}
+}
+
+
+
+ConstantPDFTrans getPDFConstatEtatCompte() {
+	final ConstantPDFTrans lConstantPDFTrans = new ConstantPDFTrans();
+	final String date = messageSource.getMessage("label.date", null,
+	        LocaleContextHolder.getLocale());
+	final String detail = messageSource.getMessage("label.detail", null,
+	        LocaleContextHolder.getLocale());
+	final String debit = messageSource.getMessage("label.debit", null,
+	        LocaleContextHolder.getLocale());
+	final String credit = messageSource.getMessage("label.credit", null,
+	        LocaleContextHolder.getLocale());
+	final String parg = messageSource.getMessage("label.compte.etat", null,
+	        LocaleContextHolder.getLocale());
+	final String numcopte = messageSource.getMessage("label.numcompte",
+	        null, LocaleContextHolder.getLocale());
+	final String label = messageSource.getMessage("label.name", null,
+	        LocaleContextHolder.getLocale());
+
+	lConstantPDFTrans.setDate(date);
+
+	lConstantPDFTrans.setMtcredit(credit);
+	lConstantPDFTrans.setMtdetail(detail);
+	lConstantPDFTrans.setMtDebit(debit);
+	lConstantPDFTrans.setParagraph(parg);
+	lConstantPDFTrans.setNumCpmteLable(numcopte);
+	lConstantPDFTrans.setCompteLable(label);
+	return lConstantPDFTrans;
+
+}
+	
+
+private PdfPCell getPdfPCellNoBorder(Paragraph paragraph) {
+    PdfPCell cell = new PdfPCell();
+    cell.setRunDirection(PdfWriter.RUN_DIRECTION_RTL);
+    cell.setPaddingBottom(8);
+    cell.setBorder(Rectangle.NO_BORDER);
+    cell.addElement(paragraph);
+    return cell;
+}
 
 }

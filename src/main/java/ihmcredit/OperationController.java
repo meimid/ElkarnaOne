@@ -45,6 +45,7 @@ import com.meimid.core.service.IAccountsMovementService;
 import com.meimid.core.service.IMvtDailyService;
 import com.meimid.core.service.IPersonneService;
 import com.meimid.core.service.ITransactionService;
+import com.meimid.core.service.IUserResetPassService;
 
 @RestController
 @PreAuthorize("hasAuthority('ROLE_ADMIN','ROLE_USER')")
@@ -130,8 +131,44 @@ private IMvtDailyService	mvtDailyService;
 					ope.setTransfereReq(ltr);
 
 				}
+				
+				if(ope.getMontant()==null ||ope.getMontant()<=0) {
+					ope.setMessage(messageSource.getMessage(
+					        "label.montant.only.number", null,
+					        LocaleContextHolder.getLocale()));
+					ope.setStatus("KO");
+					return ope;
+					
+					
+				}
+				
 				ope.setUser(userLoged);
-				mvtDailyService.save(ope);
+				
+				
+				//cas de modification 
+				if(ope.getId()!=null && ope.getId() > 0) {
+                       if (mvtDailyService.isValideMvt(ope.getId())) {
+						ope.setMessage(messageSource.getMessage(
+						        "label.ope.not.modifiable", null,
+						        LocaleContextHolder.getLocale()));
+						ope.setStatus("KO");
+						return ope;
+						
+					}	
+					
+                       long k=	mvtDailyService.modifyOperation(ope);
+                       if(k<0) {
+                    	   		ope.setStatus("KO");				
+                    	   		ope.setMessage(messageSource.getMessage(
+					        "label.ope.couldnot.modifiable", null,
+					        LocaleContextHolder.getLocale()));
+                       			}
+				
+				}
+				else {
+					mvtDailyService.save(ope);
+				}
+			
 				ope.setStatus("");
 				ope.setMessage("ok");
 			}
@@ -633,6 +670,67 @@ return userL;
 
 			final Users user = userService.getUserByLogin(userP.getUserLogin());
 			if(user.getPassword().equals(userP.getCurrentPassword())){
+				user.setPassword(userP.getPassword());
+				try {
+				userService.updateUser(user);
+				}catch(Exception e) {
+					
+					
+					final String msg = messageSource.getMessage(
+					        "label.loading.did.not.save", null,
+					        LocaleContextHolder.getLocale());				
+					userP.setMessage(msg);
+					return userP;
+					
+				}
+				
+			}
+			else {
+				final String msg = messageSource.getMessage(
+				        "old.paaword.invalide", null,
+				        LocaleContextHolder.getLocale());				
+				userP.setMessage(msg);
+				return userP;
+				
+			}
+		
+		userP.setMessage("");
+		return userP;
+
+	}
+	
+	
+	
+	
+	
+	
+	
+	@RequestMapping(value = "/modifyMyPass",
+	        headers = { "Content-type=application/json" },
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	Users modifMyPassword(@RequestBody final Users userP, final HttpServletRequest request) throws JsonProcessingException {
+
+		if ( StringUtils.isEmpty(userP.getPassword())
+		        ) {
+			String msg = "";
+			if (StringUtils.isEmpty(userP.getPassword())) {
+				msg = messageSource.getMessage("lable.password.necessaire",
+				        null, LocaleContextHolder.getLocale());
+
+			}
+
+			userP.setMessage(msg);
+			return userP;
+
+		}
+		
+		
+		
+		
+
+			final Users user = (Users) request.getAttribute("userLoged");
+			if(user.getPassword().equals(userP.getCurrentPassword())){
 				user.setPassword(userP.getNewPassword());
 				userService.updateUser(user);
 				
@@ -647,6 +745,8 @@ return userL;
 		return userP;
 
 	}
+	
+	
 	
 	@RequestMapping(value = "/listAllAccountPupJson",
 	        produces = MediaType.APPLICATION_JSON_VALUE)
@@ -817,5 +917,47 @@ return userL;
 			l_transfereReq.setDiver(true);
 			return l_transfereReq;
 		}
+	
+	
+	@RequestMapping(value = "getOperantionByID",
+	        consumes = "application/json",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	MvtDaily getOperantionByID(
+	        final HttpServletRequest request) {
+		
+	String numStr=request.getParameter("idMvt");
+		
+		if(org.apache.commons.lang3.StringUtils.isNotEmpty(numStr))
+		{  
+			Long numTrans=Long.parseLong(numStr);
+			return mvtDailyService.getDailyById(numTrans);
+		
+		
+		
+			
+		}
+		return null;
+	}
+	
+	
+	
+	@RequestMapping(value = "/listarchiveAllDailyOspJesonFlutter",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public List<ArchiveMvtDaily>  getAllArchiveDailyOperationFlutter(
+	        final HttpServletRequest request, final OperationDto opt)
+	        throws JsonProcessingException {
+		
+		//final DailyBean ldDailyBean = new DailyBean();
+		Users userLoged= (Users) request.getAttribute("userLoged");
+		final List<ArchiveMvtDaily> list =mvtDailyService.getAllArchiveMVT(userLoged.getUserLogin());
+		
+
+		return list;
+
+	}
+	
+
 
 }

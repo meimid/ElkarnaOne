@@ -52,24 +52,49 @@ UtilsConvert.crossVlidation(request,response);
 			if(user!=null &&  user.getPassword().equals(userL.getPassword()) && user.isEnabled() ){
 
 				if( user.isTempUser()) {
-					long currentTime = System.currentTimeMillis();
+					//long currentTime = System.currentTimeMillis();
+					
 					Date dt=user.getDateCreation();
-					
-					LocalDate currentDate = LocalDate.now();
 					LocalDate oneMonthsAgo = LocalDate.now().plusMonths(-1); 
-					
+					if( user.getExpiryDate() != null)
+					{
+						 dt=user.getExpiryDate();
+						 oneMonthsAgo = LocalDate.now().plusDays(1); 
+					}
+					//LocalDate currentDate = LocalDate.now();
+										
 					LocalDate date2  = dt.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-					
 					if(date2.isBefore(oneMonthsAgo))
 					{
 						
 						userL.setCode("ko");
-						userL.setExpire(1);
+						userL.setExpire(1);	
 						return  userL;
 					}
 			        
 				}
-				
+				else
+				{
+				if( user.getExpiryDate() != null) {
+					//long currentTime = System.currentTimeMillis();
+					Date dt=user.getExpiryDate();					
+					//LocalDate currentDate = LocalDate.now();
+					LocalDate oneMonthsAgo = LocalDate.now().plusDays(2); 					
+					LocalDate date2  = dt.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+					if(date2.isBefore(oneMonthsAgo))
+					{
+						
+						userL.setCode("ko");
+						userL.setExpire(1);	
+						return  userL;
+					}
+			        
+				}
+				}
+				int len=user.getName().length();
+				if(len>11)
+				len=11;
+				userL.setName(user.getName().substring(0,len));
 				UserLight userll=UtilsConvert.UpdateUserLight(userL);
 				 response.addCookie(new Cookie("JWTSESSIONID", userL.getUserLogin()));
 				 DiffterFilter.mapAI.put(userll.getUserLogin(),userll.getValue());
@@ -86,8 +111,6 @@ UtilsConvert.crossVlidation(request,response);
 		return  userL;
 		
 		}
-	
-	
 	
 
 }

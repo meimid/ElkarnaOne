@@ -27,6 +27,7 @@
      <cxf.version>3.0.1</cxf.version>
       <jackson.databind-version>2.2.3</jackson.databind-version>
       <jackson.version>1.9.13</jackson.version>
+        <email.version>1.16.18</email.version>
   </properties>
   
   
@@ -76,9 +77,28 @@
 </dependency>
   
 
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-mail</artifactId>
+    <version>1.4.7.RELEASE</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-csv</artifactId>
+    <version>1.4</version>
+</dependency>
+<dependency>
+    <groupId>commons-codec</groupId>
+    <artifactId>commons-codec</artifactId>
+    <version>1.14</version>
+</dependency>
 
-	
 
+<dependency>
+    <groupId>com.itextpdf</groupId>
+    <artifactId>itextpdf</artifactId>
+    <version>5.5.13.1</version>
+</dependency>
 
 
     </dependencies>

@@ -26,6 +26,8 @@
         <logout logout-url="/logout" logout-success-url="/login1?out=1" delete-cookies="JSESSIONID" invalidate-session="true" />
  
         <intercept-url requires-channel="https" pattern="/login*" access="permitAll()" />
+         <intercept-url requires-channel="https" pattern="/signup*" access="permitAll()" />
+           <intercept-url requires-channel="http" pattern="/signup*" access="permitAll()" />
         <intercept-url requires-channel="https" pattern="/**" access="hasRole('ROLE_USER')" />
     </http>
  

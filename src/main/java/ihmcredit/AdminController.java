@@ -1,7 +1,14 @@
 package ihmcredit;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
 import javax.servlet.http.HttpServletRequest;
 
+import org.h2.engine.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -28,9 +35,11 @@ import org.springframework.web.servlet.view.RedirectView;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.meimid.core.model.GlobalConf;
+import com.meimid.core.model.HistoriqueUserExpireDate;
 import com.meimid.core.model.UserRoles;
 import com.meimid.core.model.Users;
 import com.meimid.core.service.IGlobalConfService;
+import com.meimid.core.service.IHistoriqueUserEpireDateService;
 import com.meimid.core.service.IUserService;
 
 
@@ -46,6 +55,8 @@ public class AdminController extends AbstractClassBase {
 	IGlobalConfService	          globalService;
 	@Autowired
 	MessageSource	          messageSource;
+	@Autowired
+	IHistoriqueUserEpireDateService	          userExpireService;
 	
 
 	
@@ -244,6 +255,229 @@ public class AdminController extends AbstractClassBase {
 		return userP;
 
 	}
+	
+	
+	@RequestMapping(value = "/updateUserFromTemp",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody Users updateTempUser(HttpServletRequest request) throws JsonProcessingException
+	{
+	
+		
+	 final Users user = userService.getUserByLogin(request.getParameter("userLogin"));
+	 
+	 if(user!=null){
+		 Users userLoged= (Users) request.getAttribute("userLoged");
+		 if(!user.getUserLogin().equals(userLoged.getUserLogin())){
+			
+			 user.setTempUser(0);
+			 userService.saveUser(user);
+		 }
+		
+	 }
+	return  user;
+	}
+	
+	@RequestMapping(value = "/forceTempUser",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody Users forceTempUser(HttpServletRequest request) throws JsonProcessingException
+	{
+	
+		
+	 final Users user = userService.getUserByLogin(request.getParameter("userLogin"));
+	 
+	 if(user!=null){
+		 Users userLoged= (Users) request.getAttribute("userLoged");
+		 if(!user.getUserLogin().equals(userLoged.getUserLogin())){
+			
+			 user.setTempUser(1);
+			 userService.saveUser(user);
+		 }
+		
+	 }
+	return  user;
+	}
+	
+	@RequestMapping(value = "/stopUser",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody Users stopUser(HttpServletRequest request) throws JsonProcessingException
+	{
+	
+		
+	 final Users user = userService.getUserByLogin(request.getParameter("userLogin"));
+	 
+	 if(user!=null){
+		 Users userLoged= (Users) request.getAttribute("userLoged");
+		 if(!user.getUserLogin().equals(userLoged.getUserLogin())){
+			
+			 user.setEnabled(0); 
+			 userService.saveUser(user);
+		 }
+		
+	 }
+	return  user;
+	}
+	
+	
+	@RequestMapping(value = "/activeUser",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody Users active(HttpServletRequest request) throws JsonProcessingException
+	{
+	
+		
+	 final Users user = userService.getUserByLogin(request.getParameter("userLogin"));
+	 
+	 if(user!=null){
+		 Users userLoged= (Users) request.getAttribute("userLoged");
+		 if(!user.getUserLogin().equals(userLoged.getUserLogin())){
+			
+			 user.setEnabled(1); 
+			 userService.saveUser(user); 
+		 }
+		
+	 }
+	return  user;
+	}
+	
+	
+	
+	@RequestMapping(value = "/updateUserExpireDate",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody Users updateTempUserExpireDate(HttpServletRequest request) throws JsonProcessingException
+	{
+	
+		final Users user = userService.getUserByLogin(request.getParameter("userLogin"));
+		String sDate1=request.getParameter("expireDate");  
+	    
+	 if(user!=null && sDate1!=null){
+		 
+		 try {
+		 Users userLoged= (Users) request.getAttribute("userLoged");
+		 if(!user.getUserLogin().equals(userLoged.getUserLogin())){
+			 
+			 Date date1=new SimpleDateFormat("dd/MM/yyyy").parse(sDate1); 
+			
+			 user.setTempUser(0);
+			 int k=userService.updateUserUserExpireDate(user.getUserLogin(), date1);
+			 if(k>0) {
+				 HistoriqueUserExpireDate ht=new HistoriqueUserExpireDate();
+				 ht.setUserLogin(user.getUserLogin());
+				 ht.setExpiryDate(date1);
+				 userExpireService.saveHistoriqueEpireDate(ht);
+				 
+			 }
+			 }
+			 
+		 
+		 }catch (Exception e) {
+			// TODO: handle exception
+		}
+	 }
+	return  user;
+	}
+	
+	
+	
+	@RequestMapping(value = "/listHistoExpireDate",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody List<HistoriqueUserExpireDate> getHistoriqueUserExpireDate(HttpServletRequest request) throws JsonProcessingException
+	{
+	 final Users user = userService.getUserByLogin(request.getParameter("userLogin"));
+	 if(user!=null ){
+				return  userExpireService.getUserByLogin(user.getUserLogin());
+		 }
+	 		return  new ArrayList<HistoriqueUserExpireDate>();
+	}
+	
+	
+	@RequestMapping(value = "/listUserExpireWithInDate",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody List<Users> getUserExpireWithinDate(HttpServletRequest request) throws JsonProcessingException
+	{
+		
+		 String sDate1=request.getParameter("expireDate"); 
+	
+	 if(sDate1!=null ){
+		 Date date1;
+		try {
+			date1 = new SimpleDateFormat("dd/MM/yyyy").parse(sDate1);
+			return  userService.getAllUserExpireByDate(date1);
+		} catch (ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+				
+		 }
+	 		return  new ArrayList<Users>();
+	}
+	
+	
+	
+	@RequestMapping(value = "/updateUserStatus",
+	        headers = { "Content-type=application/json" },
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody UserLight updateUserStatus(@RequestBody  UserLight userP)throws JsonProcessingException {
+		
+		System.out.println("calling updateUserStatus P"+userP.getUserLogin());
+		System.out.println("calling updateUserStatus enabled"+userP.getEnabled());
+		System.out.println("calling updateUserStatus P"+userP.getTempUser());
+		System.out.println("calling updateUserStatus P"+userP.getExpiryDate());
+		if (userP == null || StringUtils.isEmpty(userP.getUserLogin())) {
+			final String msg = messageSource.getMessage("label.name.required",
+			        null, LocaleContextHolder.getLocale());
+			userP.setMessage(msg);
+		}
+		
+		
+		final Users user = userService.getUserByLogin(userP.getUserLogin());
+		if (user != null) {
+			
+		//	user.setEnabled(userP.getEnabled());
+			if(userP.getTempUser())
+			user.setTempUser(1);
+			else
+			user.setTempUser(0);
+			Date oldDate=user.getExpiryDate();
+					
+			user.setExpiryDate(userP.getExpiryDate());
+			//user.setAExpiryDate(userP.getExpiryDate());
+			userService.updateUser(user);
+			if(oldDate!= null && oldDate.equals(userP.getExpiryDate()))
+				saveUserUpdateDate(user,oldDate);
+			userP.setMessage("");
+		}
+		
+		
+		return userP;
+		
+	}
+	
+	void saveUserUpdateDate(Users userP,Date oldDate) {
+		 HistoriqueUserExpireDate ht=new HistoriqueUserExpireDate();
+		 ht.setUserLogin(userP.getUserLogin());
+		 ht.setExpiryDate(oldDate);
+		 userExpireService.saveHistoriqueEpireDate(ht);
+		
+	}
+	
+	
+	
+	@RequestMapping(value = "/listUserByLogin",
+	        produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody List<Users> getUserByLogin(HttpServletRequest request) throws JsonProcessingException
+	{
+		
+		 String userLogin=request.getParameter("userLogin"); 
+	
+	 if(!StringUtils.isEmpty(userLogin) ){
+		 
+			return  userService.getAllUserStrartBy(userLogin.toUpperCase());
+		
+				
+		 }
+	 		return  new ArrayList<Users>();
+	}
+	
+	
 	
 	
 	

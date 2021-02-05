@@ -28,6 +28,7 @@ public class Person implements Serializable {
 	private String	          message;
 
 	private String	          numPersonne;
+	private String	          email;
 
 	public String getFirstName() {
 		return firstName;
@@ -113,5 +114,16 @@ public class Person implements Serializable {
 	public void setNumPersonne(final String numPersonne) {
 		this.numPersonne = numPersonne;
 	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	
+	
+	
 
 }

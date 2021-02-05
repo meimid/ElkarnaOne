@@ -15,6 +15,7 @@ import com.meimid.core.model.TypeCompte;
 import com.meimid.core.model.TypeOperation;
 import com.meimid.core.service.IAccountService;
 import com.meimid.core.service.IAccountsMovementService;
+import com.meimid.core.service.IPersonneService;
 import com.meimid.core.service.ITypeCompteService;
 import com.meimid.core.service.ITypeOperationService;
 import com.meimid.core.service.IUserService;
@@ -35,10 +36,15 @@ public abstract class AbstractClassBase {
 	@Autowired
 	IAccountService	          accountService;
 	
+	@Autowired
+	IPersonneService	          personneService;
+	
+	
 	
 	private  List<String>	typeCompteCodeList;
 
-	
+	@Autowired
+   FileStorageService fileStorageService;
 
 	/**
 	 * @return the listType

@@ -29,6 +29,8 @@
 <bean id="applicationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">   
     <property name="location" value="classpath:databsePsg.properties"/>
 </bean>
+
+
 <bean id="resourceBundle"
       class="org.springframework.context.support.ReloadableResourceBundleMessageSource"
       p:basename="classpath:locale/messages"
@@ -96,7 +98,10 @@
     </bean>
 
 
-                  
+           <bean id="idFileStPr" class="ihmcredit.FileStorageProperties">
+        <property name="uploadDir" value="${user.homeeProp}"/>
+       
+    </bean>       
     
  
 </beans>

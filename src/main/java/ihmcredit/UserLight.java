@@ -1,6 +1,7 @@
 package ihmcredit;
 
 import java.io.Serializable;
+import java.util.Date;
 
 import com.meimid.core.model.Users;
 
@@ -11,6 +12,11 @@ public class UserLight implements Serializable {
 	String value;	
 	long stamp;
 	int expire;
+	String name;
+	Boolean enabled;
+	Boolean tempUser;
+	Date expiryDate;
+	String message;
 	public String getUserLogin() {
 		return userLogin;
 	}
@@ -53,6 +59,41 @@ public class UserLight implements Serializable {
 	}
 	public void setExpire(int expire) {
 		this.expire = expire;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	
+	
+	
+	
+
+	public Boolean getEnabled() {
+		return enabled;
+	}
+	public void setEnabled(Boolean enabled) {
+		this.enabled = enabled;
+	}
+	public Boolean getTempUser() {
+		return tempUser;
+	}
+	public void setTempUser(Boolean tempUser) {
+		this.tempUser = tempUser;
+	}
+	public Date getExpiryDate() {
+		return expiryDate;
+	}
+	public void setExpiryDate(Date expiryDate) {
+		this.expiryDate = expiryDate;
+	}
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
 	}
 	
 	
